@@ -58,7 +58,7 @@ export default function Dashboard() {
                 <div className="flex justify-between items-start">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-primary mb-2 group-hover:scale-110 transition-transform duration-300">
                     <span className="text-xl font-bold font-display">
-                      {app.name.charAt(0).toUpperCase()}
+                      {(app.name ?? "A").charAt(0).toUpperCase()}
                     </span>
                   </div>
                   <DropdownMenu>
@@ -68,7 +68,7 @@ export default function Dashboard() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
                         onClick={() => deleteApp.mutate(app.id)}
                       >
@@ -78,18 +78,12 @@ export default function Dashboard() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-                <CardTitle className="text-xl">{app.name}</CardTitle>
+                <CardTitle className="text-xl">{app.name ?? "Untitled App"}</CardTitle>
                 <CardDescription className="flex items-center gap-1 mt-1">
                   <Calendar className="w-3.5 h-3.5" />
                   Created {format(new Date(app.createdAt), "MMM d, yyyy")}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-primary/50 w-1/3" />
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">3 Screens • 12 Entries</p>
-              </CardContent>
               <CardFooter className="gap-2 pt-0">
                 <Link href={`/app/${app.id}/editor`} className="flex-1">
                   <Button variant="outline" className="w-full gap-2">

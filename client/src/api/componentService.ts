@@ -1,59 +1,47 @@
 /**
  * Component API Service
- * Handles CRUD operations for Component resource
- * TODO: Verify controller routes in flexa.Api\Controllers\ComponentController.cs
+ *
+ * GET    /api/component
+ * GET    /api/component/:id
+ * GET    /api/component/by-screen/:screenId
+ * POST   /api/component
+ * PUT    /api/component/:id
+ * DELETE /api/component/:id
  */
 
-import api from './api';
-import type { ComponentRequest, ComponentResponse } from '../types/api';
+import api from "./api-client";
+import type { ComponentRequest, ComponentResponse } from "../types/api";
 
-const RESOURCE = '/api/components'; // TODO: Verify exact endpoint name
+const RESOURCE = "/api/component";
 
 export const ComponentService = {
-  /**
-   * Get all components for a Screen
-   * TODO: Verify endpoint for getting components by screenId
-   * Might be: GET /api/components?screenId=123 OR GET /api/screens/{screenId}/components
-   */
-  async getAllForScreen(screenId: number): Promise<ComponentResponse[]> {
-    const response = await api.get<ComponentResponse[]>(RESOURCE, {
-      params: { screenId },
-    });
-    return response.data;
+  async getAll(): Promise<ComponentResponse[]> {
+    const res = await api.get<ComponentResponse[]>(RESOURCE);
+    return res.data;
   },
 
-  /**
-   * Get a single Component by ID
-   * TODO: Verify in ComponentController.cs: GET api/components/{id}
-   */
   async getById(id: number): Promise<ComponentResponse> {
-    const response = await api.get<ComponentResponse>(`${RESOURCE}/${id}`);
-    return response.data;
+    const res = await api.get<ComponentResponse>(`${RESOURCE}/${id}`);
+    return res.data;
   },
 
-  /**
-   * Create a new Component
-   * TODO: Verify POST body structure in ComponentController.cs
-   * Verify: does config come as JSON string or object?
-   */
+  async getByScreen(screenId: number): Promise<ComponentResponse[]> {
+    const res = await api.get<ComponentResponse[]>(
+      `${RESOURCE}/by-screen/${screenId}`
+    );
+    return res.data;
+  },
+
   async create(payload: ComponentRequest): Promise<ComponentResponse> {
-    const response = await api.post<ComponentResponse>(RESOURCE, payload);
-    return response.data;
+    const res = await api.post<ComponentResponse>(RESOURCE, payload);
+    return res.data;
   },
 
-  /**
-   * Update an existing Component
-   * TODO: Verify PUT body structure in ComponentController.cs
-   */
   async update(id: number, payload: ComponentRequest): Promise<ComponentResponse> {
-    const response = await api.put<ComponentResponse>(`${RESOURCE}/${id}`, payload);
-    return response.data;
+    const res = await api.put<ComponentResponse>(`${RESOURCE}/${id}`, payload);
+    return res.data;
   },
 
-  /**
-   * Delete a Component
-   * TODO: Verify response type in ComponentController.cs
-   */
   async delete(id: number): Promise<void> {
     await api.delete(`${RESOURCE}/${id}`);
   },

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link } from "wouter";
 import { useApp } from "@/hooks/use-apps";
 import { useScreens, useCreateScreen, useDeleteScreen } from "@/hooks/use-screens";
@@ -7,21 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Plus, 
-  Trash2, 
-  ChevronLeft, 
-  Type, 
-  Hash, 
-  Calendar, 
-  CheckSquare, 
+import {
+  Plus,
+  Trash2,
+  ChevronLeft,
+  Type,
+  Hash,
+  Calendar,
+  CheckSquare,
   List,
   Save,
   Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -41,28 +40,32 @@ const COMPONENT_TYPES = [
 
 export default function Editor() {
   const { id } = useParams<{ id: string }>();
-  const [selectedScreenId, setSelectedScreenId] = useState<string | null>(null);
+  const [selectedScreenId, setSelectedScreenId] = useState<number | null>(null);
   const [isNewScreenOpen, setIsNewScreenOpen] = useState(false);
   const [newScreenName, setNewScreenName] = useState("");
 
   const { data: app, isLoading: isAppLoading } = useApp(id);
-  const { data: screens } = useScreens(id);
-  const { data: components } = useComponents(selectedScreenId || "");
-  
+  const { data: screens = [] } = useScreens(id);
+  const { data: components = [] } = useComponents(
+    selectedScreenId ?? undefined
+  );
+
   const createScreen = useCreateScreen();
   const deleteScreen = useDeleteScreen();
   const createComponent = useCreateComponent();
   const deleteComponent = useDeleteComponent();
 
   // Auto-select first screen
-  if (screens && screens.length > 0 && !selectedScreenId) {
-    setSelectedScreenId(screens[0].id);
-  }
+  useEffect(() => {
+    if (screens.length > 0 && selectedScreenId === null) {
+      setSelectedScreenId(screens[0].id);
+    }
+  }, [screens, selectedScreenId]);
 
   const handleCreateScreen = () => {
-    if (!newScreenName.trim()) return;
+    if (!newScreenName.trim() || !id) return;
     createScreen.mutate(
-      { appId: id, data: { name: newScreenName, order: screens?.length || 0 } },
+      { name: newScreenName, appEntityId: id },
       {
         onSuccess: () => {
           setIsNewScreenOpen(false);
@@ -73,22 +76,31 @@ export default function Editor() {
   };
 
   const handleAddComponent = (type: string) => {
-    if (!selectedScreenId) return;
+    if (selectedScreenId === null) return;
     const count = components?.length || 0;
+    const defaultConfig =
+      type === "dropdown"
+        ? JSON.stringify({ options: ["Option 1", "Option 2"] })
+        : undefined;
+
     createComponent.mutate({
+      elementType: type,
+      label: `New ${type}`,
+      model: `field_${Date.now()}`,
+      order: count,
+      required: false,
       screenId: selectedScreenId,
-      data: {
-        elementType: type,
-        label: `New ${type}`,
-        model: `field_${Date.now()}`,
-        order: count,
-        required: false,
-        config: type === 'dropdown' ? { options: ['Option 1', 'Option 2'] } : {}
-      }
+      ...(defaultConfig ? { config: defaultConfig } : {}),
     });
   };
 
-  if (isAppLoading || !app) return <div className="h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
+  if (isAppLoading || !app) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
@@ -101,7 +113,7 @@ export default function Editor() {
             </Button>
           </Link>
           <div>
-            <h1 className="font-bold text-lg">{app.name}</h1>
+            <h1 className="font-bold text-lg">{app.name ?? "Untitled App"}</h1>
             <p className="text-xs text-muted-foreground">Editor Mode</p>
           </div>
         </div>
@@ -134,8 +146,8 @@ export default function Editor() {
                 </DialogHeader>
                 <div className="py-4">
                   <Label>Screen Name</Label>
-                  <Input 
-                    value={newScreenName} 
+                  <Input
+                    value={newScreenName}
                     onChange={(e) => setNewScreenName(e.target.value)}
                     placeholder="e.g. Employee Details"
                   />
@@ -149,24 +161,24 @@ export default function Editor() {
           <ScrollArea className="flex-1">
             <div className="p-2 space-y-1">
               {screens?.map((screen) => (
-                <div 
+                <div
                   key={screen.id}
                   className={cn(
                     "flex items-center justify-between px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors group",
-                    selectedScreenId === screen.id 
-                      ? "bg-primary/10 text-primary font-medium" 
+                    selectedScreenId === screen.id
+                      ? "bg-primary/10 text-primary font-medium"
                       : "hover:bg-accent hover:text-accent-foreground"
                   )}
                   onClick={() => setSelectedScreenId(screen.id)}
                 >
-                  <span>{screen.name}</span>
+                  <span>{screen.name ?? "Untitled Screen"}</span>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
                     onClick={(e) => {
                       e.stopPropagation();
-                      deleteScreen.mutate({ id: screen.id, appId: id });
+                      deleteScreen.mutate({ id: screen.id, appEntityId: id });
                     }}
                   >
                     <Trash2 className="w-3 h-3" />
@@ -182,7 +194,7 @@ export default function Editor() {
           <div className="w-full max-w-2xl bg-card rounded-xl shadow-lg border border-border min-h-[600px] flex flex-col">
             <div className="p-6 border-b border-border">
               <h2 className="text-2xl font-bold">
-                {screens?.find(s => s.id === selectedScreenId)?.name || "Select a screen"}
+                {screens?.find((s) => s.id === selectedScreenId)?.name ?? "Select a screen"}
               </h2>
             </div>
             <div className="p-6 space-y-4 flex-1">
@@ -192,22 +204,37 @@ export default function Editor() {
                   <p className="text-sm">Click items on the right to add them.</p>
                 </div>
               ) : (
-                components?.sort((a, b) => a.order - b.order).map((comp) => (
-                  <div 
-                    key={comp.id} 
-                    className="group relative p-4 rounded-lg border border-transparent hover:border-primary/50 hover:bg-primary/5 transition-all"
-                  >
-                    <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 flex gap-1">
-                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteComponent.mutate({ id: comp.id, screenId: selectedScreenId! })}>
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                components
+                  ?.sort((a, b) => a.order - b.order)
+                  .map((comp) => (
+                    <div
+                      key={comp.id}
+                      className="group relative p-4 rounded-lg border border-transparent hover:border-primary/50 hover:bg-primary/5 transition-all"
+                    >
+                      <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                          onClick={() =>
+                            deleteComponent.mutate({
+                              id: comp.id,
+                              screenId: selectedScreenId!,
+                            })
+                          }
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                      <Label className="pointer-events-none">
+                        {comp.label}
+                        {comp.required && "*"}
+                      </Label>
+                      <div className="mt-2 pointer-events-none opacity-60">
+                        <Input disabled placeholder={`Input for ${comp.label}`} />
+                      </div>
                     </div>
-                    <Label className="pointer-events-none">{comp.label}{comp.required && "*"}</Label>
-                    <div className="mt-2 pointer-events-none opacity-60">
-                      <Input disabled placeholder={`Input for ${comp.label}`} />
-                    </div>
-                  </div>
-                ))
+                  ))
               )}
             </div>
           </div>
@@ -226,16 +253,16 @@ export default function Editor() {
                   variant="outline"
                   className="h-20 flex flex-col gap-2 hover:border-primary hover:text-primary transition-all"
                   onClick={() => handleAddComponent(item.type)}
-                  disabled={!selectedScreenId}
+                  disabled={selectedScreenId === null}
                 >
                   <item.icon className="w-6 h-6" />
                   <span className="text-xs">{item.label}</span>
                 </Button>
               ))}
             </div>
-            
+
             <Separator className="my-6" />
-            
+
             <div className="p-4 bg-muted/50 rounded-lg border border-border">
               <div className="flex items-center gap-2 mb-2 text-sm font-medium">
                 <Settings className="w-4 h-4" /> Properties

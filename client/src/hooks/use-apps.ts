@@ -1,7 +1,5 @@
 /**
- * AppEntity Hooks (Apps)
- * Uses new Axios API service layer for .NET 9 backend
- * TODO: Verify exact endpoint paths in flexa.Api\Controllers\AppEntityController.cs
+ * AppEntity Hooks
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,29 +7,21 @@ import { useToast } from "@/hooks/use-toast";
 import { AppEntityService } from "@/api/appEntityService";
 import type { AppEntityRequest, AppEntityResponse } from "@/types/api";
 
-// Query key constants
-const QUERY_KEY_APP_ENTITIES = ["appEntities"];
+const APPS_KEY = ["apps"] as const;
+const appKey = (id: string) => ["apps", id] as const;
 
 export function useApps() {
-  return useQuery({
-    queryKey: QUERY_KEY_APP_ENTITIES,
-    queryFn: async () => {
-      return AppEntityService.getAll();
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: 1,
+  return useQuery<AppEntityResponse[]>({
+    queryKey: APPS_KEY,
+    queryFn: () => AppEntityService.getAll(),
   });
 }
 
-export function useApp(id: number | string) {
-  return useQuery({
-    queryKey: ["appEntities", id],
+export function useApp(id: string | undefined) {
+  return useQuery<AppEntityResponse>({
+    queryKey: appKey(id ?? ""),
+    queryFn: () => AppEntityService.getById(id!),
     enabled: !!id,
-    queryFn: async () => {
-      return AppEntityService.getById(Number(id));
-    },
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
   });
 }
 
@@ -39,22 +29,14 @@ export function useCreateApp() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation({
-    mutationFn: async (data: AppEntityRequest) => {
-      return AppEntityService.create(data);
-    },
+  return useMutation<AppEntityResponse, Error, AppEntityRequest>({
+    mutationFn: (data) => AppEntityService.create(data),
     onSuccess: () => {
-      // Invalidate the list to trigger re-fetch
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY_APP_ENTITIES });
-      toast({ title: "Success", description: "App created successfully" });
+      queryClient.invalidateQueries({ queryKey: APPS_KEY });
+      toast({ title: "App criado com sucesso" });
     },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : "Failed to create app";
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive",
-      });
+    onError: (err) => {
+      toast({ title: "Erro ao criar app", description: err.message, variant: "destructive" });
     },
   });
 }
@@ -63,22 +45,15 @@ export function useUpdateApp() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: AppEntityRequest }) => {
-      return AppEntityService.update(id, data);
-    },
+  return useMutation<void, Error, { id: string; data: AppEntityRequest }>({
+    mutationFn: ({ id, data }) => AppEntityService.update(id, data),
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY_APP_ENTITIES });
-      queryClient.invalidateQueries({ queryKey: ["appEntities", id] });
-      toast({ title: "Success", description: "App updated successfully" });
+      queryClient.invalidateQueries({ queryKey: APPS_KEY });
+      queryClient.invalidateQueries({ queryKey: appKey(id) });
+      toast({ title: "App atualizado" });
     },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : "Failed to update app";
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive",
-      });
+    onError: (err) => {
+      toast({ title: "Erro ao atualizar app", description: err.message, variant: "destructive" });
     },
   });
 }
@@ -87,21 +62,14 @@ export function useDeleteApp() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation({
-    mutationFn: async (id: number) => {
-      return AppEntityService.delete(id);
-    },
+  return useMutation<void, Error, string>({
+    mutationFn: (id) => AppEntityService.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY_APP_ENTITIES });
-      toast({ title: "Success", description: "App deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: APPS_KEY });
+      toast({ title: "App excluído" });
     },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : "Failed to delete app";
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive",
-      });
+    onError: (err) => {
+      toast({ title: "Erro ao excluir app", description: err.message, variant: "destructive" });
     },
   });
 }

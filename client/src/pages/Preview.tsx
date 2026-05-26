@@ -17,27 +17,29 @@ export default function Preview() {
 
   const { data: app } = useApp(id);
   const { data: screens } = useScreens(id);
-  
+
   const currentScreen = screens?.[activeScreenIndex];
-  const { data: components } = useComponents(currentScreen?.id || "");
+  const { data: components } = useComponents(currentScreen?.id);
   const createDataEntry = useCreateDataEntry();
 
-  const handleFormSubmit = (data: any) => {
-    if (!currentScreen) return;
-    
-    createDataEntry.mutate(
-      { 
-        appId: id, 
-        screenId: currentScreen.id, 
-        data 
-      },
-      {
-        onSuccess: () => {
-          setSuccess(true);
-          setTimeout(() => setSuccess(false), 3000);
-        }
-      }
-    );
+  const handleFormSubmit = (formData: Record<string, any>) => {
+    if (!currentScreen || !components) return;
+
+    // Create a DataEntry for each component with form data
+    const mutations = components.map((comp) => {
+      const key = comp.model || `field_${comp.id}`;
+      const value = formData[key];
+      return createDataEntry.mutateAsync({
+        screenId: currentScreen.id,
+        componentId: comp.id,
+        data: JSON.stringify({ value }),
+      });
+    });
+
+    Promise.all(mutations).then(() => {
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    });
   };
 
   if (!app || !screens) return null;
@@ -52,13 +54,13 @@ export default function Preview() {
         </Link>
 
         <div className="text-center mb-10">
-          <h1 className="text-3xl font-display font-bold">{app.name}</h1>
+          <h1 className="text-3xl font-display font-bold">{app.name ?? "Untitled App"}</h1>
           <p className="text-muted-foreground mt-2">Preview Mode</p>
         </div>
 
         {screens.length > 1 && (
-          <Tabs 
-            value={String(activeScreenIndex)} 
+          <Tabs
+            value={String(activeScreenIndex)}
             onValueChange={(v) => setActiveScreenIndex(Number(v))}
             className="mb-8"
           >
@@ -90,13 +92,13 @@ export default function Preview() {
         ) : (
           <Card className="shadow-xl shadow-black/5 border-border/60">
             <CardHeader>
-              <CardTitle>{currentScreen?.name}</CardTitle>
+              <CardTitle>{currentScreen?.name ?? "Select a screen"}</CardTitle>
               <CardDescription>Fill out the form below</CardDescription>
             </CardHeader>
             <CardContent>
               {components && components.length > 0 ? (
-                <DynamicForm 
-                  components={components} 
+                <DynamicForm
+                  components={components}
                   onSubmit={handleFormSubmit}
                   isSubmitting={createDataEntry.isPending}
                 />

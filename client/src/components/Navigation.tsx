@@ -1,9 +1,9 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { 
-  LogOut, 
-  LayoutDashboard, 
-  Layers, 
+import {
+  LogOut,
+  LayoutDashboard,
+  Layers,
   Settings,
   User as UserIcon
 } from "lucide-react";
@@ -19,10 +19,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function Navigation() {
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
   const [location] = useLocation();
 
   if (!user) return null;
+
+  const initials = user.email
+    ? user.email.substring(0, 2).toUpperCase()
+    : "U";
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -34,18 +38,18 @@ export function Navigation() {
             </div>
             FLEXA
           </Link>
-          
+
           <nav className="hidden md:flex items-center gap-6">
-            <Link 
-              href="/" 
+            <Link
+              href="/"
               className={`text-sm font-medium transition-colors hover:text-primary ${
                 location === "/" ? "text-primary" : "text-muted-foreground"
               }`}
             >
               Dashboard
             </Link>
-            <Link 
-              href="/templates" 
+            <Link
+              href="/templates"
               className={`text-sm font-medium transition-colors hover:text-primary ${
                 location === "/templates" ? "text-primary" : "text-muted-foreground"
               }`}
@@ -55,29 +59,28 @@ export function Navigation() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                <Avatar className="h-9 w-9 border border-border">
-                  <AvatarImage src={user.profileImageUrl || ""} alt={user.firstName || "User"} />
-                  <AvatarFallback className="bg-primary/10 text-primary">
-                    {user.firstName?.[0] || <UserIcon className="w-4 h-4" />}
-                  </AvatarFallback>
+                <Avatar className="h-9 w-9">
+                  <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{user.firstName} {user.lastName}</p>
+                  <p className="text-sm font-medium leading-none">
+                    {user.email ?? "User"}
+                  </p>
                   <p className="text-xs leading-none text-muted-foreground">
                     {user.email}
                   </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => logout()}>
+              <DropdownMenuItem onClick={() => signOut()}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>

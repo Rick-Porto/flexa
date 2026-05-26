@@ -1,122 +1,105 @@
 /**
- * TypeScript interfaces matching .NET 9 backend DTOs
- * TODO: Verify exact field names and types in flexa.App\DTOs\*.cs
+ * TypeScript interfaces matching the .NET backend DTOs.
+ *
+ * ID types:
+ *   AppEntity.id  → Guid (string UUID)
+ *   Screen.id     → int
+ *   Component.id  → int
+ *   DataEntry.id  → int
  */
 
 // ============================================================================
-// AppEntity DTO
+// AppEntity
 // ============================================================================
-// TODO: Verify in flexa.App\DTOs\AppEntity\AppEntityRequest.cs
+
 export interface AppEntityRequest {
-  name: string;
-  description?: string | null;
+  name?: string;
+  description?: string;
 }
 
-// TODO: Verify in flexa.App\DTOs\AppEntity\AppEntityResponse.cs
 export interface AppEntityResponse {
-  id: number;
-  name: string;
-  description?: string | null;
-  screens?: ScreenResponse[];
-  createdAt: string; // ISO datetime
-  updatedAt?: string | null;
+  id: string;          // Guid
+  name: string | null;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+  userId: string;      // Supabase user ID (from JWT sub)
 }
 
 // ============================================================================
-// Screen DTO
+// Screen
 // ============================================================================
-// TODO: Verify in flexa.App\DTOs\Screen\ScreenRequest.cs
+
 export interface ScreenRequest {
-  name: string;
-  description?: string | null;
-  appEntityId: number;
+  name?: string;
+  description?: string;
+  appEntityId: string;  // Guid — required
 }
 
-// TODO: Verify in flexa.App\DTOs\Screen\ScreenResponse.cs
 export interface ScreenResponse {
   id: number;
-  name: string;
-  description?: string | null;
-  appEntityId: number;
-  components?: ComponentResponse[];
-  dataEntries?: DataEntryResponse[];
-  createdAt: string; // ISO datetime
-  updatedAt?: string | null;
+  name: string | null;
+  description: string | null;
+  appEntityId: string;
+  createdAt: string;
+  updatedAt: string;
+  components: ComponentResponse[];
+  dataEntries: DataEntryResponse[];
 }
 
 // ============================================================================
-// Component DTO
+// Component
 // ============================================================================
-// TODO: Verify in flexa.App\DTOs\Component\ComponentRequest.cs
+
 export interface ComponentRequest {
-  elementType: string; // "text", "number", "date", "checkbox", "dropdown"
-  label?: string | null;
-  model?: string | null;
-  config?: string | null; // JSON string or object
-  order?: number | null;
-  required?: boolean | null;
+  elementType: string;   // required — "text", "select", "checkbox", etc.
+  label: string;         // required
+  model?: string;
+  config?: string;       // JSON string
+  order?: number;
+  required?: boolean;
   screenId: number;
 }
 
-// TODO: Verify in flexa.App\DTOs\Component\ComponentResponse.cs
 export interface ComponentResponse {
   id: number;
   elementType: string;
-  label?: string | null;
-  model?: string | null;
-  config?: string | null;
-  order?: number | null;
-  required?: boolean | null;
+  label: string;
+  model: string | null;
+  config: string | null;   // JSON string
+  order: number;
+  required: boolean;
   screenId: number;
-  createdAt: string; // ISO datetime
-  updatedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  dataEntries: DataEntryResponse[];
 }
 
 // ============================================================================
-// DataEntry DTO
+// DataEntry
 // ============================================================================
-// TODO: Verify in flexa.App\DTOs\DataEntry\DataEntryRequest.cs
+
 export interface DataEntryRequest {
-  config?: string | null;
-  data?: string | null;
-  screenId?: number | null;
-  componentId?: number | null;
+  config?: string;       // JSON string
+  data?: string;         // JSON string, defaults to "{}"
+  screenId: number;
+  componentId: number;
 }
 
-// TODO: Verify in flexa.App\DTOs\DataEntry\DataEntryResponse.cs
 export interface DataEntryResponse {
   id: number;
-  config?: string | null;
-  data?: string | null;
-  screenId?: number | null;
-  componentId?: number | null;
-  createdAt: string; // ISO datetime
-  updatedAt?: string | null;
+  config: string | null;
+  data: string;          // JSON string — parse with JSON.parse()
+  screenId: number;
+  componentId: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ============================================================================
-// Auth & User
+// API Error
 // ============================================================================
-// TODO: Verify user response structure in flexa.Api\Controllers\AuthController.cs
-export interface UserResponse {
-  id: string | number;
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  name?: string;
-}
 
-// TODO: Verify login response structure
-export interface LoginResponse {
-  token: string;
-  user: UserResponse;
-}
-
-// ============================================================================
-// API Error Response
-// ============================================================================
 export interface ApiErrorResponse {
-  status: number;
-  message: string;
-  errors?: Record<string, string[]>;
+  error: string;         // backend uses "error", not "message"
 }

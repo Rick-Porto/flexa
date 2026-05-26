@@ -15,26 +15,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 import { useCreateApp } from "@/hooks/use-apps";
-import { insertAppSchema } from "@shared/schema";
 
-const formSchema = insertAppSchema.pick({ name: true });
+const formSchema = z.object({
+  name: z.string().min(1, "App name is required"),
+  description: z.string().optional(),
+});
 type FormData = z.infer<typeof formSchema>;
 
 export function CreateAppDialog() {
   const [open, setOpen] = useState(false);
   const { mutate, isPending } = useCreateApp();
-  
+
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(formSchema),
   });
 
   const onSubmit = (data: FormData) => {
-    mutate(data, {
-      onSuccess: () => {
-        setOpen(false);
-        reset();
-      },
-    });
+    mutate(
+      { name: data.name, description: data.description },
+      {
+        onSuccess: () => {
+          setOpen(false);
+          reset();
+        },
+      }
+    );
   };
 
   return (
@@ -59,6 +64,10 @@ export function CreateAppDialog() {
             {errors.name && (
               <p className="text-sm text-destructive">{errors.name.message}</p>
             )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="description">Description (optional)</Label>
+            <Input id="description" placeholder="A short description..." {...register("description")} />
           </div>
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>

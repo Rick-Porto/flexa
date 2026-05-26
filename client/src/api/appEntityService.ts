@@ -1,57 +1,39 @@
 /**
  * AppEntity API Service
- * Handles CRUD operations for AppEntity resource
- * TODO: Verify controller routes in flexa.Api\Controllers\AppEntityController.cs
- * TODO: Confirm whether controllers require userId param or extract from JWT (check AppEntityController.cs)
+ *
+ * GET    /api/appentity
+ * GET    /api/appentity/:id
+ * POST   /api/appentity
+ * PUT    /api/appentity/:id
+ * DELETE /api/appentity/:id
  */
 
-import api from './api';
-import type { AppEntityRequest, AppEntityResponse } from '../types/api';
+import api from "./api-client";
+import type { AppEntityRequest, AppEntityResponse } from "../types/api";
 
-const RESOURCE = '/api/appentities'; // TODO: Verify exact endpoint name
+const RESOURCE = "/api/appentity";
 
 export const AppEntityService = {
-  /**
-   * Get all AppEntities for the authenticated user
-   * TODO: Verify whether endpoint returns all or filters by userId
-   */
   async getAll(): Promise<AppEntityResponse[]> {
-    const response = await api.get<AppEntityResponse[]>(RESOURCE);
-    return response.data;
+    const res = await api.get<AppEntityResponse[]>(RESOURCE);
+    return res.data;
   },
 
-  /**
-   * Get a single AppEntity by ID
-   * TODO: Verify in AppEntityController.cs: GET api/appentities/{id}
-   */
-  async getById(id: number): Promise<AppEntityResponse> {
-    const response = await api.get<AppEntityResponse>(`${RESOURCE}/${id}`);
-    return response.data;
+  async getById(id: string): Promise<AppEntityResponse> {
+    const res = await api.get<AppEntityResponse>(`${RESOURCE}/${id}`);
+    return res.data;
   },
 
-  /**
-   * Create a new AppEntity
-   * TODO: Verify POST body structure in AppEntityController.cs
-   */
   async create(payload: AppEntityRequest): Promise<AppEntityResponse> {
-    const response = await api.post<AppEntityResponse>(RESOURCE, payload);
-    return response.data;
+    const res = await api.post<AppEntityResponse>(RESOURCE, payload);
+    return res.data;
   },
 
-  /**
-   * Update an existing AppEntity
-   * TODO: Verify PUT body structure in AppEntityController.cs
-   */
-  async update(id: number, payload: AppEntityRequest): Promise<AppEntityResponse> {
-    const response = await api.put<AppEntityResponse>(`${RESOURCE}/${id}`, payload);
-    return response.data;
+  async update(id: string, payload: AppEntityRequest): Promise<void> {
+    await api.put(`${RESOURCE}/${id}`, payload);
   },
 
-  /**
-   * Delete an AppEntity
-   * TODO: Verify response type (void or AppEntityResponse) in AppEntityController.cs
-   */
-  async delete(id: number): Promise<void> {
+  async delete(id: string): Promise<void> {
     await api.delete(`${RESOURCE}/${id}`);
   },
 };
