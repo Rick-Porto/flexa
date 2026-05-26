@@ -1,7 +1,5 @@
 /**
  * Screen Hooks
- * Uses new Axios API service layer for .NET 9 backend
- * TODO: Verify exact endpoint paths in flexa.Api\Controllers\ScreenController.cs
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,27 +7,24 @@ import { useToast } from "@/hooks/use-toast";
 import { ScreenService } from "@/api/screenService";
 import type { ScreenRequest, ScreenResponse } from "@/types/api";
 
-export function useScreens(appEntityId: number | string) {
-  return useQuery({
-    queryKey: ["screens", appEntityId],
-    enabled: !!appEntityId,
-    queryFn: async () => {
-      return ScreenService.getAllForApp(Number(appEntityId));
-    },
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
+const SCREENS_KEY = ["screens"] as const;
+
+export function useScreens(appEntityId: string | undefined) {
+  return useQuery<ScreenResponse[]>({
+    queryKey: SCREENS_KEY,
+    queryFn: () => ScreenService.getAll(),
+    select: (screens) =>
+      appEntityId
+        ? screens.filter((s) => s.appEntityId === appEntityId)
+        : screens,
   });
 }
 
-export function useScreen(id: number | string) {
-  return useQuery({
+export function useScreen(id: number | undefined) {
+  return useQuery<ScreenResponse>({
     queryKey: ["screens", id],
-    enabled: !!id,
-    queryFn: async () => {
-      return ScreenService.getById(Number(id));
-    },
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
+    queryFn: () => ScreenService.getById(id!),
+    enabled: id !== undefined,
   });
 }
 
@@ -37,21 +32,14 @@ export function useCreateScreen() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation({
-    mutationFn: async ({ appEntityId, data }: { appEntityId: number; data: ScreenRequest }) => {
-      return ScreenService.create(data);
+  return useMutation<ScreenResponse, Error, ScreenRequest>({
+    mutationFn: (data) => ScreenService.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: SCREENS_KEY });
+      toast({ title: "Tela criada" });
     },
-    onSuccess: (_, { appEntityId }) => {
-      queryClient.invalidateQueries({ queryKey: ["screens", appEntityId] });
-      toast({ title: "Success", description: "Screen created successfully" });
-    },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : "Failed to create screen";
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive",
-      });
+    onError: (err) => {
+      toast({ title: "Erro ao criar tela", description: err.message, variant: "destructive" });
     },
   });
 }
@@ -60,22 +48,14 @@ export function useUpdateScreen() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: ScreenRequest }) => {
-      return ScreenService.update(id, data);
+  return useMutation<void, Error, { id: number; data: ScreenRequest }>({
+    mutationFn: ({ id, data }) => ScreenService.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: SCREENS_KEY });
+      toast({ title: "Tela atualizada" });
     },
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ["screens"] });
-      queryClient.invalidateQueries({ queryKey: ["screens", id] });
-      toast({ title: "Success", description: "Screen updated successfully" });
-    },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : "Failed to update screen";
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive",
-      });
+    onError: (err) => {
+      toast({ title: "Erro ao atualizar tela", description: err.message, variant: "destructive" });
     },
   });
 }
@@ -84,21 +64,14 @@ export function useDeleteScreen() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation({
-    mutationFn: async ({ id, appEntityId }: { id: number; appEntityId: number }) => {
-      return ScreenService.delete(id);
+  return useMutation<void, Error, { id: number; appEntityId: string }>({
+    mutationFn: ({ id }) => ScreenService.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: SCREENS_KEY });
+      toast({ title: "Tela excluída" });
     },
-    onSuccess: (_, { appEntityId }) => {
-      queryClient.invalidateQueries({ queryKey: ["screens", appEntityId] });
-      toast({ title: "Success", description: "Screen deleted successfully" });
-    },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : "Failed to delete screen";
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive",
-      });
+    onError: (err) => {
+      toast({ title: "Erro ao excluir tela", description: err.message, variant: "destructive" });
     },
   });
 }

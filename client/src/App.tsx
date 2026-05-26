@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
+
 import { Loader2 } from "lucide-react";
 
 // Pages
@@ -14,24 +15,6 @@ import Preview from "@/pages/Preview";
 import Templates from "@/pages/Templates";
 import NotFound from "@/pages/NotFound";
 import { Navigation } from "@/components/Navigation";
-
-function PrivateRoute({ component: Component, ...rest }: any) {
-  const { user, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Redirect to="/" />;
-  }
-
-  return <Component {...rest} />;
-}
 
 function Router() {
   const { user, isLoading } = useAuth();
@@ -46,7 +29,7 @@ function Router() {
 
   return (
     <Switch>
-      {/* Public Routes */}
+      {/* Public / Conditional Routes */}
       <Route path="/">
         {user ? (
           <>
@@ -60,15 +43,22 @@ function Router() {
 
       {/* Protected Routes */}
       <Route path="/templates">
-        {user ? <Templates /> : <Redirect to="/" />}
+        {user ? (
+          <>
+            <Navigation />
+            <Templates />
+          </>
+        ) : (
+          <Redirect to="/" />
+        )}
       </Route>
 
       <Route path="/app/:id/editor">
-        {params => user ? <Editor params={params} /> : <Redirect to="/" />}
+        {user ? <Editor /> : <Redirect to="/" />}
       </Route>
 
       <Route path="/app/:id/preview">
-        {params => user ? <Preview params={params} /> : <Redirect to="/" />}
+        {user ? <Preview /> : <Redirect to="/" />}
       </Route>
 
       {/* Fallback */}

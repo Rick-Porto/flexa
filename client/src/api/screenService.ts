@@ -1,59 +1,38 @@
 /**
  * Screen API Service
- * Handles CRUD operations for Screen resource
- * TODO: Verify controller routes in flexa.Api\Controllers\ScreenController.cs
- * TODO: Confirm whether controllers pass userId or extract from JWT
+ *
+ * GET    /api/screens
+ * GET    /api/screens/:id
+ * POST   /api/screens
+ * PUT    /api/screens/:id
+ * DELETE /api/screens/:id
  */
 
-import api from './api';
-import type { ScreenRequest, ScreenResponse } from '../types/api';
+import api from "./api-client";
+import type { ScreenRequest, ScreenResponse } from "../types/api";
 
-const RESOURCE = '/api/screens'; // TODO: Verify exact endpoint name
+const RESOURCE = "/api/screens";
 
 export const ScreenService = {
-  /**
-   * Get all screens for an AppEntity
-   * TODO: Verify whether filter by appId query param is supported
-   * Endpoint might be: GET /api/screens?appEntityId=123
-   */
-  async getAllForApp(appEntityId: number): Promise<ScreenResponse[]> {
-    const response = await api.get<ScreenResponse[]>(RESOURCE, {
-      params: { appEntityId },
-    });
-    return response.data;
+  async getAll(): Promise<ScreenResponse[]> {
+    const res = await api.get<ScreenResponse[]>(RESOURCE);
+    return res.data;
   },
 
-  /**
-   * Get a single Screen by ID
-   * TODO: Verify in ScreenController.cs: GET api/screens/{id}
-   */
   async getById(id: number): Promise<ScreenResponse> {
-    const response = await api.get<ScreenResponse>(`${RESOURCE}/${id}`);
-    return response.data;
+    const res = await api.get<ScreenResponse>(`${RESOURCE}/${id}`);
+    return res.data;
   },
 
-  /**
-   * Create a new Screen
-   * TODO: Verify POST body structure in ScreenController.cs
-   */
   async create(payload: ScreenRequest): Promise<ScreenResponse> {
-    const response = await api.post<ScreenResponse>(RESOURCE, payload);
-    return response.data;
+    const res = await api.post<ScreenResponse>(RESOURCE, payload);
+    return res.data;
   },
 
-  /**
-   * Update an existing Screen
-   * TODO: Verify PUT body structure in ScreenController.cs
-   */
-  async update(id: number, payload: ScreenRequest): Promise<ScreenResponse> {
-    const response = await api.put<ScreenResponse>(`${RESOURCE}/${id}`, payload);
-    return response.data;
+  async update(id: number, payload: ScreenRequest): Promise<void> {
+    await api.put(`${RESOURCE}/${id}`, payload);
   },
 
-  /**
-   * Delete a Screen
-   * TODO: Verify response type in ScreenController.cs
-   */
   async delete(id: number): Promise<void> {
     await api.delete(`${RESOURCE}/${id}`);
   },
