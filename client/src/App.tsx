@@ -13,6 +13,7 @@ import Dashboard from "@/pages/Dashboard";
 import Editor from "@/pages/Editor";
 import Preview from "@/pages/Preview";
 import Templates from "@/pages/Templates";
+import Data from "@/pages/Data";
 import NotFound from "@/pages/NotFound";
 import { Navigation } from "@/components/Navigation";
 
@@ -59,6 +60,10 @@ function Router() {
 
       <Route path="/app/:id/preview">
         {user ? <Preview /> : <Redirect to="/" />}
+      </Route>
+
+      <Route path="/app/:id/data">
+        {user ? <Data /> : <Redirect to="/" />}
       </Route>
 
       {/* Fallback */}
