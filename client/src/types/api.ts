@@ -24,6 +24,28 @@ export interface AppEntityResponse {
   createdAt: string;
   updatedAt: string;
   userId: string;      // Supabase user ID (from JWT sub)
+  publicLink: string | null;  // Public link for published apps
+}
+
+export interface AppEntityPublishResponse {
+  id: string;
+  name: string | null;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+  userId: string;
+  publicLink: string;  // The generated public link
+}
+
+export interface PublicAppResponse {
+  id: string;
+  name: string | null;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+  userId: string;
+  publicLink: string;
+  screens: ScreenResponse[];
 }
 
 // ============================================================================
