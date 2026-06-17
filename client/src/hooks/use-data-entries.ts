@@ -40,6 +40,28 @@ export function useCreateDataEntry() {
   });
 }
 
+export function useDeleteDataEntry() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation<void, Error, { id: number; screenId: number }>({
+    mutationFn: ({ id }) => DataEntryService.delete(id),
+    onSuccess: (_, { screenId }) => {
+      queryClient.invalidateQueries({
+        queryKey: dataEntriesKey(screenId),
+      });
+      toast({ title: "Entrada excluída" });
+    },
+    onError: (err) => {
+      toast({
+        title: "Erro ao excluir entrada",
+        description: err.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
 export function useUpdateDataEntry() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
