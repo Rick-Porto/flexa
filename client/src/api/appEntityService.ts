@@ -6,10 +6,13 @@
  * POST   /api/appentity
  * PUT    /api/appentity/:id
  * DELETE /api/appentity/:id
+ * POST   /api/appentity/:id/publish
+ * POST   /api/appentity/:id/unpublish
+ * GET    /api/appentity/public/:publicLink
  */
 
 import api from "./api-client";
-import type { AppEntityRequest, AppEntityResponse } from "../types/api";
+import type { AppEntityRequest, AppEntityResponse, AppEntityPublishResponse, PublicAppResponse } from "../types/api";
 
 const RESOURCE = "/api/appentity";
 
@@ -35,5 +38,20 @@ export const AppEntityService = {
 
   async delete(id: string): Promise<void> {
     await api.delete(`${RESOURCE}/${id}`);
+  },
+
+  async publish(id: string): Promise<AppEntityPublishResponse> {
+    const res = await api.post<AppEntityPublishResponse>(`${RESOURCE}/${id}/publish`);
+    return res.data;
+  },
+
+  async unpublish(id: string): Promise<AppEntityResponse> {
+    const res = await api.post<AppEntityResponse>(`${RESOURCE}/${id}/unpublish`);
+    return res.data;
+  },
+
+  async getPublic(publicLink: string): Promise<PublicAppResponse> {
+    const res = await api.get<PublicAppResponse>(`${RESOURCE}/public/${publicLink}`);
+    return res.data;
   },
 };

@@ -15,6 +15,7 @@ import Preview from "@/pages/Preview";
 import Templates from "@/pages/Templates";
 import Data from "@/pages/Data";
 import DataTableScreen from "@/pages/DataTableScreen";
+import PublicApp from "@/pages/PublicApp";
 import NotFound from "@/pages/NotFound";
 import { Navigation } from "@/components/Navigation";
 
@@ -41,6 +42,11 @@ function Router() {
         ) : (
           <Landing />
         )}
+      </Route>
+
+      {/* Public Published App Route */}
+      <Route path="/app/public/:publicLink">
+        <PublicApp />
       </Route>
 
       {/* Protected Routes */}

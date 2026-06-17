@@ -1,20 +1,25 @@
-import { useApps, useDeleteApp } from "@/hooks/use-apps";
+import { useApps, useDeleteApp, usePublishApp, useUnpublishApp } from "@/hooks/use-apps";
 import { CreateAppDialog } from "@/components/CreateAppDialog";
 import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Edit2, Eye, Trash2, Calendar, MoreVertical, Layout } from "lucide-react";
+import { Edit2, Eye, Trash2, Calendar, MoreVertical, Layout, Globe, Share2, Lock } from "lucide-react";
 import { format } from "date-fns";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
   const { data: apps, isLoading } = useApps();
   const deleteApp = useDeleteApp();
+  const publishApp = usePublishApp();
+  const unpublishApp = useUnpublishApp();
+  const { toast } = useToast();
 
   if (isLoading) {
     return (
@@ -68,9 +73,48 @@ export default function Dashboard() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      {app.publicLink ? (
+                        <>
+                          <DropdownMenuItem
+                            className="flex items-center gap-2"
+                            onClick={() => {
+                              navigator.clipboard.writeText(app.publicLink!);
+                              toast({ title: "Link copiado", description: "Link público copiado para a área de transferência" });
+                            }}
+                          >
+                            <Share2 className="w-4 h-4" />
+                            Copiar link público
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => window.open(app.publicLink!, "_blank")}
+                          >
+                            <Globe className="w-4 h-4 mr-2" />
+                            Abrir no navegador
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => unpublishApp.mutate(app.id)}
+                            disabled={unpublishApp.isPending}
+                          >
+                            <Lock className="w-4 h-4 mr-2" />
+                            Despublicar
+                          </DropdownMenuItem>
+                        </>
+                      ) : (
+                        <DropdownMenuItem
+                          onClick={() => publishApp.mutate(app.id)}
+                          disabled={publishApp.isPending}
+                        >
+                          <Globe className="w-4 h-4 mr-2" />
+                          Publicar
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
                         onClick={() => deleteApp.mutate(app.id)}
+                        disabled={deleteApp.isPending}
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
                         Delete
