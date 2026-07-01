@@ -1,11 +1,13 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { usePublishedApps } from "@/hooks/use-apps";
 import {
   LogOut,
   LayoutDashboard,
   Layers,
   Settings,
-  User as UserIcon
+  User as UserIcon,
+  Globe
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -21,6 +23,7 @@ import {
 export function Navigation() {
   const { user, signOut } = useAuth();
   const [location] = useLocation();
+  const { data: publishedApps } = usePublishedApps();
 
   if (!user) return null;
 
@@ -56,6 +59,17 @@ export function Navigation() {
             >
               Templates
             </Link>
+            {publishedApps && publishedApps.length > 0 && (
+              <Link
+                href="/published"
+                className={`text-sm font-medium transition-colors hover:text-primary flex items-center gap-1 ${
+                  location === "/published" ? "text-primary" : "text-muted-foreground"
+                }`}
+              >
+                <Globe className="h-4 w-4" />
+                Published Apps
+              </Link>
+            )}
           </nav>
         </div>
 

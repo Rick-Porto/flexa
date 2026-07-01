@@ -74,6 +74,32 @@ export const api = {
         401: errorSchemas.unauthorized,
       },
     },
+    publish: {
+      method: 'POST' as const,
+      path: '/api/apps/:id/publish' as const,
+      responses: {
+        200: z.custom<typeof apps.$inferSelect>(),
+        404: errorSchemas.notFound,
+        401: errorSchemas.unauthorized,
+      },
+    },
+    unpublish: {
+      method: 'POST' as const,
+      path: '/api/apps/:id/unpublish' as const,
+      responses: {
+        200: z.custom<typeof apps.$inferSelect>(),
+        404: errorSchemas.notFound,
+        401: errorSchemas.unauthorized,
+      },
+    },
+    public: {
+      method: 'GET' as const,
+      path: '/api/apps/public/:publicLink' as const,
+      responses: {
+        200: z.custom<typeof apps.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
   },
   screens: {
     list: {

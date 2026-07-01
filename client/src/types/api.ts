@@ -15,36 +15,43 @@
 export interface AppEntityRequest {
   name?: string;
   description?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface AppEntityResponse {
-  id: string;          // Guid
+  id: string;              // Guid
   name: string | null;
   description: string | null;
+  metadata: Record<string, any>;
   createdAt: string;
   updatedAt: string;
-  userId: string;      // Supabase user ID (from JWT sub)
+  ownerId: string;         // Supabase user ID (from JWT sub)
   publicLink: string | null;  // Public link for published apps
+  isPublished: boolean;    // Publication status
 }
 
 export interface AppEntityPublishResponse {
   id: string;
   name: string | null;
   description: string | null;
+  metadata: Record<string, any>;
   createdAt: string;
   updatedAt: string;
-  userId: string;
-  publicLink: string;  // The generated public link
+  ownerId: string;
+  publicLink: string;      // The generated public link
+  isPublished: boolean;
 }
 
 export interface PublicAppResponse {
   id: string;
   name: string | null;
   description: string | null;
+  metadata: Record<string, any>;
   createdAt: string;
   updatedAt: string;
-  userId: string;
+  ownerId: string;
   publicLink: string;
+  isPublished: boolean;
   screens: ScreenResponse[];
 }
 
@@ -55,14 +62,18 @@ export interface PublicAppResponse {
 export interface ScreenRequest {
   name?: string;
   description?: string;
-  appEntityId: string;  // Guid — required
+  appId: string;           // Guid — required
+  order?: number;
+  metadata?: Record<string, any>;
 }
 
 export interface ScreenResponse {
-  id: number;
+  id: string;              // UUID
   name: string | null;
   description: string | null;
-  appEntityId: string;
+  appId: string;
+  order: number;
+  metadata: Record<string, any>;
   createdAt: string;
   updatedAt: string;
   components: ComponentResponse[];
@@ -74,24 +85,26 @@ export interface ScreenResponse {
 // ============================================================================
 
 export interface ComponentRequest {
-  elementType: string;   // required — "text", "select", "checkbox", etc.
-  label: string;         // required
+  elementType: string;     // required — "text", "select", "checkbox", etc.
+  label: string;           // required
   model?: string;
-  config?: string;       // JSON string
+  config?: Record<string, any>;
   order?: number;
   required?: boolean;
-  screenId: number;
+  validationRule?: string;
+  screenId: string;        // UUID
 }
 
 export interface ComponentResponse {
-  id: number;
+  id: string;              // UUID
   elementType: string;
   label: string;
   model: string | null;
-  config: string | null;   // JSON string
+  config: Record<string, any>;
   order: number;
   required: boolean;
-  screenId: number;
+  validationRule: string | null;
+  screenId: string;
   createdAt: string;
   updatedAt: string;
   dataEntries: DataEntryResponse[];
@@ -102,18 +115,18 @@ export interface ComponentResponse {
 // ============================================================================
 
 export interface DataEntryRequest {
-  config?: string;       // JSON string
-  data?: string;         // JSON string, defaults to "{}"
-  screenId: number;
-  componentId: number;
+  config?: Record<string, any>;
+  data?: Record<string, any>;
+  screenId: string;        // UUID
+  componentId: string;     // UUID
 }
 
 export interface DataEntryResponse {
-  id: number;
-  config: string | null;
-  data: string;          // JSON string — parse with JSON.parse()
-  screenId: number;
-  componentId: number;
+  id: string;              // UUID
+  config: Record<string, any> | null;
+  data: Record<string, any>;   // JSON object
+  screenId: string;
+  componentId: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -123,5 +136,5 @@ export interface DataEntryResponse {
 // ============================================================================
 
 export interface ApiErrorResponse {
-  error: string;         // backend uses "error", not "message"
+  error: string;           // backend uses "error", not "message"
 }

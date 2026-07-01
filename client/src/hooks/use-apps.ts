@@ -108,6 +108,14 @@ export function useUnpublishApp() {
   });
 }
 
+export function usePublishedApps() {
+  return useQuery<AppEntityResponse[]>({
+    queryKey: ["apps", "published"] as const,
+    queryFn: () => AppEntityService.getAll(),
+    select: (apps) => apps.filter(app => app.publicLink),
+  });
+}
+
 export function usePublicApp(publicLink: string | undefined) {
   return useQuery<PublicAppResponse>({
     queryKey: ["apps", "public", publicLink] as const,

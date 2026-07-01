@@ -11,10 +11,13 @@ export * from "./models/auth";
 export const apps = pgTable("apps", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
+  description: text("description"),
   metadata: jsonb("metadata").$type<Record<string, any>>().default({}),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   ownerId: text("owner_id").notNull().references(() => users.id), // Owner is a Replit Auth user (string ID)
+  publicLink: text("public_link").unique(), // Public link for published apps
+  isPublished: boolean("is_published").default(false).notNull(), // Publication status
 });
 
 export const screens = pgTable("screens", {
@@ -93,11 +96,13 @@ export const dataEntriesRelations = relations(dataEntries, ({ one }) => ({
 
 // --- Schemas & Types ---
 
-export const insertAppSchema = createInsertSchema(apps).omit({ 
-  id: true, 
-  createdAt: true, 
+export const insertAppSchema = createInsertSchema(apps).omit({
+  id: true,
+  createdAt: true,
   updatedAt: true,
-  ownerId: true // Set server-side from session
+  ownerId: true, // Set server-side from session
+  publicLink: true, // Set server-side
+  isPublished: true, // Set server-side
 });
 
 export const insertScreenSchema = createInsertSchema(screens).omit({ 
