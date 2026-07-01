@@ -145,7 +145,8 @@ export default function PublicApp() {
                   No components on this screen yet.
                 </div>
               )}
-            </CardContent          />
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

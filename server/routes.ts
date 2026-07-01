@@ -85,6 +85,78 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // Publish app
+  app.post(api.apps.publish.path, isAuthenticated, async (req, res) => {
+    try {
+      const existing = await storage.apps.getById(req.params.id);
+      if (!existing) return res.status(404).json({ message: 'App not found' });
+      if (existing.ownerId !== (req.user as any).claims.sub) {
+        return res.status(403).json({ message: 'Unauthorized' });
+      }
+
+      // Generate unique public link if not already published
+      const publicLink = existing.publicLink || crypto.randomUUID().slice(0, 8);
+      const updated = await storage.apps.update(req.params.id, {
+        isPublished: true,
+        publicLink,
+      });
+      res.json(updated);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
+  });
+
+  // Unpublish app
+  app.post(api.apps.unpublish.path, isAuthenticated, async (req, res) => {
+    try {
+      const existing = await storage.apps.getById(req.params.id);
+      if (!existing) return res.status(404).json({ message: 'App not found' });
+      if (existing.ownerId !== (req.user as any).claims.sub) {
+        return res.status(403).json({ message: 'Unauthorized' });
+      }
+
+      const updated = await storage.apps.update(req.params.id, {
+        isPublished: false,
+        publicLink: null,
+      });
+      res.json(updated);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
+  });
+
+  // Public app endpoint (no auth required)
+  app.get(api.apps.public.path, async (req, res) => {
+    try {
+      const { publicLink } = req.params;
+      const app = await storage.apps.getByPublicLink(publicLink);
+      if (!app || !app.isPublished) {
+        return res.status(404).json({ message: 'App not found or not published' });
+      }
+      res.json(app);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
+  });
+
   // --- Screens ---
 
   app.get(api.screens.list.path, isAuthenticated, async (req, res) => {

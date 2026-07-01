@@ -16,6 +16,7 @@ import Templates from "@/pages/Templates";
 import Data from "@/pages/Data";
 import DataTableScreen from "@/pages/DataTableScreen";
 import PublicApp from "@/pages/PublicApp";
+import PublishedApps from "@/pages/PublishedApps";
 import NotFound from "@/pages/NotFound";
 import { Navigation } from "@/components/Navigation";
 
@@ -44,12 +45,27 @@ function Router() {
         )}
       </Route>
 
-      {/* Public Published App Route */}
+      {/* Public Published App Routes */}
       <Route path="/app/public/:publicLink">
+        <PublicApp />
+      </Route>
+      {/* Short public link format */}
+      <Route path="/:publicLink">
         <PublicApp />
       </Route>
 
       {/* Protected Routes */}
+      <Route path="/published">
+        {user ? (
+          <>
+            <Navigation />
+            <PublishedApps />
+          </>
+        ) : (
+          <Redirect to="/" />
+        )}
+      </Route>
+
       <Route path="/templates">
         {user ? (
           <>
