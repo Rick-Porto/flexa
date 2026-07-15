@@ -7,14 +7,14 @@ import { useToast } from "@/hooks/use-toast";
 import { DataEntryService } from "@/api/dataEntryService";
 import type { DataEntryRequest, DataEntryResponse } from "@/types/api";
 
-const dataEntriesKey = (screenId: number) =>
-  ["dataEntries", screenId] as const;
+const dataEntriesKey = (appId: string, screenId: string) =>
+  ["dataEntries", appId, screenId] as const;
 
-export function useDataEntries(screenId: number | undefined) {
+export function useDataEntries(appId: string | undefined, screenId: string | undefined) {
   return useQuery<DataEntryResponse[]>({
-    queryKey: dataEntriesKey(screenId ?? -1),
-    queryFn: () => DataEntryService.getByScreen(screenId!),
-    enabled: screenId !== undefined,
+    queryKey: appId && screenId ? dataEntriesKey(appId, screenId) : ["dataEntries", appId ?? "", screenId ?? ""] as const,
+    queryFn: () => DataEntryService.getByScreen(appId!, screenId!),
+    enabled: Boolean(appId && screenId),
   });
 }
 
@@ -22,11 +22,11 @@ export function useCreateDataEntry() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation<DataEntryResponse, Error, DataEntryRequest>({
-    mutationFn: (data) => DataEntryService.create(data),
-    onSuccess: (_, data) => {
+  return useMutation<DataEntryResponse, Error, { appId: string; data: DataEntryRequest }>({
+    mutationFn: ({ appId, data }) => DataEntryService.create(appId, data),
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: dataEntriesKey(data.screenId),
+        queryKey: dataEntriesKey(variables.appId, variables.data.screenId),
       });
       toast({ title: "Entrada registrada com sucesso" });
     },
@@ -44,11 +44,11 @@ export function useDeleteDataEntry() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation<void, Error, { id: number; screenId: number }>({
+  return useMutation<void, Error, { id: string; appId: string; screenId: string }>({
     mutationFn: ({ id }) => DataEntryService.delete(id),
-    onSuccess: (_, { screenId }) => {
+    onSuccess: (_, { appId, screenId }) => {
       queryClient.invalidateQueries({
-        queryKey: dataEntriesKey(screenId),
+        queryKey: dataEntriesKey(appId, screenId),
       });
       toast({ title: "Entrada excluída" });
     },
@@ -69,12 +69,12 @@ export function useUpdateDataEntry() {
   return useMutation<
     DataEntryResponse,
     Error,
-    { id: number; screenId: number; data: DataEntryRequest }
+    { id: string; appId: string; screenId: string; data: DataEntryRequest }
   >({
     mutationFn: ({ id, data }) => DataEntryService.update(id, data),
-    onSuccess: (_, { screenId }) => {
+    onSuccess: (_, { appId, screenId }) => {
       queryClient.invalidateQueries({
-        queryKey: dataEntriesKey(screenId),
+        queryKey: dataEntriesKey(appId, screenId),
       });
       toast({ title: "Entrada atualizada" });
     },

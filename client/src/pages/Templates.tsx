@@ -254,7 +254,7 @@ export default function Templates() {
       const app = await createApp.mutateAsync({ name: appName, description: selectedTemplate.description });
 
       for (const screen of allScreens) {
-        const createdScreen = await createScreen.mutateAsync({ name: screen.name, appEntityId: app.id });
+        const createdScreen = await createScreen.mutateAsync({ name: screen.name, appId: app.id });
 
         for (let order = 0; order < screen.fields.length; order++) {
           const field = screen.fields[order];
@@ -265,7 +265,7 @@ export default function Templates() {
             order,
             required: field.required || false,
             screenId: createdScreen.id,
-            ...(field.config ? { config: field.config } : {}),
+            ...(field.config ? { config: parseConfig(field.config) } : {}),
           });
         }
       }

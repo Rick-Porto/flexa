@@ -111,8 +111,7 @@ export function useUnpublishApp() {
 export function usePublishedApps() {
   return useQuery<AppEntityResponse[]>({
     queryKey: ["apps", "published"] as const,
-    queryFn: () => AppEntityService.getAll(),
-    select: (apps) => apps.filter(app => app.publicLink),
+    queryFn: () => AppEntityService.getPublished(),
   });
 }
 

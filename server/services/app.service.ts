@@ -1,33 +1,34 @@
 import { db } from "../db";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import {
   apps,
   type App,
   type InsertApp,
   users
 } from "@shared/schema";
+import { screens, components } from "@shared/schema";
+
+const memoryApps: App[] = [];
+
+function getUserAppList(userId?: string): App[] {
+  return memoryApps.filter((app) => !userId || app.ownerId === userId);
+}
 
 export class AppService {
   async getAll(userId?: string): Promise<(App & { owner: typeof users.$inferSelect })[]> {
     if (!db) {
-      // Mock data for frontend testing
-      return [{
-        id: "mock-app-1",
-        name: "Sample App",
-        metadata: {},
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        ownerId: userId || "mock-user",
+      return getUserAppList(userId).map((app) => ({
+        ...app,
         owner: {
-          id: userId || "mock-user",
-          email: "test@example.com",
-          firstName: "Test",
+          id: app.ownerId,
+          email: "local@flexa.dev",
+          firstName: "Local",
           lastName: "User",
           profileImageUrl: null,
           createdAt: new Date(),
           updatedAt: new Date(),
-        }
-      }];
+        } as typeof users.$inferSelect,
+      }));
     }
 
     const query = db.select().from(apps).leftJoin(users, eq(apps.ownerId, users.id));
@@ -42,18 +43,7 @@ export class AppService {
 
   async getById(id: string): Promise<App | undefined> {
     if (!db) {
-      // Mock data for frontend testing
-      if (id === "mock-app-1") {
-        return {
-          id: "mock-app-1",
-          name: "Sample App",
-          metadata: {},
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          ownerId: "mock-user",
-        };
-      }
-      return undefined;
+      return memoryApps.find((app) => app.id === id);
     }
 
     const [app] = await db.select().from(apps).where(eq(apps.id, id));
@@ -61,84 +51,91 @@ export class AppService {
   }
 
   async getByPublicLink(publicLink: string): Promise<App | undefined> {
-    if (!db) {
-      // Mock data for frontend testing
-      if (publicLink === "mock-link") {
-        return {
-          id: "mock-app-1",
-          name: "Sample App",
-          metadata: {},
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          ownerId: "mock-user",
-          isPublished: true,
-          publicLink: "mock-link",
-        };
-      }
-      return undefined;
-    }
-
     const [app] = await db.select().from(apps).where(eq(apps.publicLink, publicLink));
     return app;
   }
 
-  async create(app: InsertApp): Promise<App> {
+  async getPublicAppWithScreens(publicLink: string): Promise<{ app: App; screens: any[] } | undefined> {
+    const [app] = await db.select().from(apps).where(eq(apps.publicLink, publicLink));
+    if (!app || !app.isPublished) return undefined;
+
+    // Get screens for this app
+    const appScreens = await db.select().from(screens).where(eq(screens.appId, app.id)).orderBy(screens.order);
+
+    // Get components for each screen
+    const screensWithComponents = await Promise.all(appScreens.map(async (screenRow) => {
+      const screenComponents = await db!.select().from(components).where(eq(components.screenId, screenRow.id));
+      return { ...screenRow, components: screenComponents };
+    }));
+
+    return { app, screens: screensWithComponents };
+  }
+
+  async getPublished(): Promise<(App & { owner: typeof users.$inferSelect })[]> {
+    const query = db.select().from(apps).leftJoin(users, eq(apps.ownerId, users.id)).where(eq(apps.isPublished, true));
+
+    const results = await query;
+    return results.map(r => ({ ...r.apps, owner: r.users! }));
+  }
+
+  async create(app: any): Promise<App> {
     if (!db) {
-      // Mock data for frontend testing
-      return {
-        id: "new-mock-app",
-        ...app,
+      const newApp: App = {
+        id: `local-${Date.now()}`,
+        name: app.name ?? null,
+        description: app.description ?? null,
+        metadata: app.metadata ?? {},
         createdAt: new Date(),
         updatedAt: new Date(),
-      };
+        ownerId: app.ownerId ?? "local-user",
+        publicLink: app.publicLink ?? null,
+        isPublished: app.isPublished ?? false,
+      } as App;
+      memoryApps.push(newApp);
+      return newApp;
     }
-    
-    const [newApp] = await db.insert(apps).values(app).returning();
+
+    const [newApp] = await db.insert(apps).values(app as any).returning();
     return newApp;
   }
 
   async update(id: string, app: Partial<InsertApp>): Promise<App | undefined> {
     if (!db) {
-      // Mock data for frontend testing
-      return {
-        id,
-        name: app.name || "Updated App",
-        metadata: app.metadata || {},
-        createdAt: new Date(),
+      const index = memoryApps.findIndex((item) => item.id === id);
+      if (index === -1) return undefined;
+      memoryApps[index] = {
+        ...memoryApps[index],
+        ...app,
         updatedAt: new Date(),
-        ownerId: "mock-user",
-      };
+      } as App;
+      return memoryApps[index];
     }
 
     const [updatedApp] = await db
       .update(apps)
-      .set({ ...app, updatedAt: new Date() })
+      .set({ ...(app as any), updatedAt: new Date() } as any)
       .where(eq(apps.id, id))
       .returning();
     return updatedApp;
   }
 
   async publish(id: string, userId: string): Promise<App | undefined> {
-    if (!db) {
-      // Mock data for frontend testing
-      if (id === "mock-app-1") {
-        return {
-          id: "mock-app-1",
-          name: "Sample App",
-          metadata: {},
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          ownerId: userId,
-          isPublished: true,
-          publicLink: "mock-link",
-        };
-      }
-      return undefined;
-    }
-
     const existing = await this.getById(id);
     if (!existing || existing.ownerId !== userId) {
       return undefined;
+    }
+
+    if (!db) {
+      const index = memoryApps.findIndex((item) => item.id === id);
+      if (index === -1) return undefined;
+      const publicLink = existing.publicLink || crypto.randomUUID().slice(0, 8);
+      memoryApps[index] = {
+        ...memoryApps[index],
+        isPublished: true,
+        publicLink,
+        updatedAt: new Date(),
+      } as App;
+      return memoryApps[index];
     }
 
     const publicLink = existing.publicLink || crypto.randomUUID().slice(0, 8);
@@ -151,26 +148,21 @@ export class AppService {
   }
 
   async unpublish(id: string, userId: string): Promise<App | undefined> {
-    if (!db) {
-      // Mock data for frontend testing
-      if (id === "mock-app-1") {
-        return {
-          id: "mock-app-1",
-          name: "Sample App",
-          metadata: {},
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          ownerId: userId,
-          isPublished: false,
-          publicLink: null,
-        };
-      }
-      return undefined;
-    }
-
     const existing = await this.getById(id);
     if (!existing || existing.ownerId !== userId) {
       return undefined;
+    }
+
+    if (!db) {
+      const index = memoryApps.findIndex((item) => item.id === id);
+      if (index === -1) return undefined;
+      memoryApps[index] = {
+        ...memoryApps[index],
+        isPublished: false,
+        publicLink: null,
+        updatedAt: new Date(),
+      } as App;
+      return memoryApps[index];
     }
 
     const [updatedApp] = await db
@@ -183,10 +175,13 @@ export class AppService {
 
   async delete(id: string): Promise<void> {
     if (!db) {
-      // Mock - do nothing
+      const index = memoryApps.findIndex((item) => item.id === id);
+      if (index !== -1) {
+        memoryApps.splice(index, 1);
+      }
       return;
     }
-    
+
     await db.delete(apps).where(eq(apps.id, id));
   }
 }

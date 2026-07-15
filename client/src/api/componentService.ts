@@ -10,39 +10,38 @@
  */
 
 import api from "./api-client";
+import { api as apiRoutes, buildUrl } from "@shared/routes";
 import type { ComponentRequest, ComponentResponse } from "../types/api";
-
-const RESOURCE = "/api/component";
 
 export const ComponentService = {
   async getAll(): Promise<ComponentResponse[]> {
-    const res = await api.get<ComponentResponse[]>(RESOURCE);
+    const res = await api.get<ComponentResponse[]>(apiRoutes.components.list.path);
     return res.data;
   },
 
-  async getById(id: number): Promise<ComponentResponse> {
-    const res = await api.get<ComponentResponse>(`${RESOURCE}/${id}`);
+  async getById(id: string): Promise<ComponentResponse> {
+    const res = await api.get<ComponentResponse>(apiRoutes.components.get.path.replace(':id', id));
     return res.data;
   },
 
-  async getByScreen(screenId: number): Promise<ComponentResponse[]> {
+  async getByScreen(screenId: string): Promise<ComponentResponse[]> {
     const res = await api.get<ComponentResponse[]>(
-      `${RESOURCE}/by-screen/${screenId}`
+      buildUrl('/api/Component/by-screen/:screenId', { screenId })
     );
     return res.data;
   },
 
   async create(payload: ComponentRequest): Promise<ComponentResponse> {
-    const res = await api.post<ComponentResponse>(RESOURCE, payload);
+    const res = await api.post<ComponentResponse>(apiRoutes.components.create.path, payload);
     return res.data;
   },
 
-  async update(id: number, payload: ComponentRequest): Promise<ComponentResponse> {
-    const res = await api.put<ComponentResponse>(`${RESOURCE}/${id}`, payload);
+  async update(id: string, payload: ComponentRequest): Promise<ComponentResponse> {
+    const res = await api.put<ComponentResponse>(apiRoutes.components.update.path.replace(':id', id), payload);
     return res.data;
   },
 
-  async delete(id: number): Promise<void> {
-    await api.delete(`${RESOURCE}/${id}`);
+  async delete(id: string): Promise<void> {
+    await api.delete(apiRoutes.components.delete.path.replace(':id', id));
   },
 };

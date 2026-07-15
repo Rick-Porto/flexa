@@ -11,46 +11,40 @@
  */
 
 import api from "./api-client";
+import { api as apiRoutes, buildUrl } from "@shared/routes";
 import type { DataEntryRequest, DataEntryResponse } from "../types/api";
 
-const RESOURCE = "/api/dataentry";
-
 export const DataEntryService = {
-  async getAll(): Promise<DataEntryResponse[]> {
-    const res = await api.get<DataEntryResponse[]>(RESOURCE);
-    return res.data;
-  },
-
-  async getById(id: number): Promise<DataEntryResponse> {
-    const res = await api.get<DataEntryResponse>(`${RESOURCE}/${id}`);
-    return res.data;
-  },
-
-  async getByScreen(screenId: number): Promise<DataEntryResponse[]> {
+  async getAll(_appId: string, screenId: string): Promise<DataEntryResponse[]> {
     const res = await api.get<DataEntryResponse[]>(
-      `${RESOURCE}/by-screen/${screenId}`
+      buildUrl('/api/DataEntry/by-screen/:screenId', { screenId })
     );
     return res.data;
   },
 
-  async getByComponent(componentId: number): Promise<DataEntryResponse[]> {
+  async getById(id: string): Promise<DataEntryResponse> {
+    const res = await api.get<DataEntryResponse>(apiRoutes.dataEntries.get.path.replace(':id', id));
+    return res.data;
+  },
+
+  async getByScreen(_appId: string, screenId: string): Promise<DataEntryResponse[]> {
     const res = await api.get<DataEntryResponse[]>(
-      `${RESOURCE}/by-component/${componentId}`
+      buildUrl('/api/DataEntry/by-screen/:screenId', { screenId })
     );
     return res.data;
   },
 
-  async create(payload: DataEntryRequest): Promise<DataEntryResponse> {
-    const res = await api.post<DataEntryResponse>(RESOURCE, payload);
+  async create(_appId: string, payload: DataEntryRequest): Promise<DataEntryResponse> {
+    const res = await api.post<DataEntryResponse>(apiRoutes.dataEntries.create.path, payload);
     return res.data;
   },
 
-  async update(id: number, payload: DataEntryRequest): Promise<DataEntryResponse> {
-    const res = await api.put<DataEntryResponse>(`${RESOURCE}/${id}`, payload);
+  async update(id: string, payload: DataEntryRequest): Promise<DataEntryResponse> {
+    const res = await api.put<DataEntryResponse>(apiRoutes.dataEntries.update.path.replace(':id', id), payload);
     return res.data;
   },
 
-  async delete(id: number): Promise<void> {
-    await api.delete(`${RESOURCE}/${id}`);
+  async delete(id: string): Promise<void> {
+    await api.delete(apiRoutes.dataEntries.delete.path.replace(':id', id));
   },
 };

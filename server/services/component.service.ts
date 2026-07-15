@@ -61,8 +61,15 @@ export class ComponentService {
       // Mock data for frontend testing
       return {
         id: "new-mock-component",
-        ...component,
-      };
+        screenId: component.screenId,
+        elementType: component.elementType,
+        model: component.model,
+        label: component.label,
+        config: component.config ?? {},
+        order: component.order ?? 0,
+        required: component.required ?? false,
+        validationRule: component.validationRule ?? null,
+      } as Component;
     }
     
     const [newComponent] = await db
@@ -82,9 +89,9 @@ export class ComponentService {
         model: "name",
         label: component.label || "Updated Component",
         config: component.config || {},
-        order: component.order || 0,
-        required: component.required || false,
-        validationRule: component.validationRule || "",
+        order: component.order ?? 0,
+        required: component.required ?? false,
+        validationRule: component.validationRule ?? null,
       };
     }
     

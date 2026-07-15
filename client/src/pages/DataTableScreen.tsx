@@ -37,8 +37,8 @@ import { useScreen, useScreens } from "@/hooks/use-screens";
 import { format } from "date-fns";
 
 interface DataEntryRow {
-  id: number;
-  screenId: number;
+  id: string;
+  screenId: string;
   userId?: string;
   data: Record<string, unknown>;
   createdAt: string;
@@ -46,11 +46,12 @@ interface DataEntryRow {
 }
 
 export default function DataTableScreen() {
-  const params = useParams<{ id: string }>();
+  const params = useParams<{ id: string; screenId: string }>();
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const screenId = Number(params?.id);
+  const appId = params?.id ?? "";
+  const screenId = params?.screenId ?? "";
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -60,7 +61,7 @@ export default function DataTableScreen() {
   const [editFormData, setEditFormData] = useState<Record<string, string>>({});
 
   const { data: screen } = useScreen(screenId);
-  const { data: entries } = useDataEntries(screenId);
+  const { data: entries } = useDataEntries(appId, screenId);
   const createEntry = useCreateDataEntry();
   const updateEntry = useUpdateDataEntry();
   const deleteEntry = useDeleteDataEntry();
@@ -137,25 +138,26 @@ export default function DataTableScreen() {
     try {
       await updateEntry.mutateAsync({
         id: editingEntry.id,
+        appId,
         screenId: editingEntry.screenId,
         data: payload as any,
-      } as any);
+      });
       setEditDialogOpen(false);
       setEditingEntry(null);
       setEditFormData({});
-      queryClient.invalidateQueries({ queryKey: ["dataEntries", screenId] });
+      queryClient.invalidateQueries({ queryKey: ["dataEntries", appId, screenId] });
       toast({ title: "Entrada atualizada com sucesso" });
     } catch (err) {
       console.error("Error updating entry:", err);
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir esta entrada?")) return;
 
     try {
-      await deleteEntry.mutateAsync({ id, screenId });
-      queryClient.invalidateQueries({ queryKey: ["dataEntries", screenId] });
+      await deleteEntry.mutateAsync({ id, appId, screenId });
+      queryClient.invalidateQueries({ queryKey: ["dataEntries", appId, screenId] });
       toast({ title: "Entrada excluída com sucesso" });
     } catch (err) {
       console.error("Error deleting entry:", err);
@@ -178,10 +180,14 @@ export default function DataTableScreen() {
 
     try {
       await createEntry.mutateAsync({
-        screenId,
-        data: payload,
-      } as any);
-      queryClient.invalidateQueries({ queryKey: ["dataEntries", screenId] });
+        appId,
+        data: {
+          ...payload,
+          screenId,
+          componentId: components[0]?.id ?? "",
+        } as any,
+      });
+      queryClient.invalidateQueries({ queryKey: ["dataEntries", appId, screenId] });
       toast({ title: "Entrada criada com sucesso" });
     } catch (err) {
       console.error("Error creating entry:", err);
@@ -370,14 +376,12 @@ export default function DataTableScreen() {
                       </SelectTrigger>
                       <SelectContent>
                         {(() => {
-                          try {
-                            const config = JSON.parse(comp.config || "{}");
-                            return config.options?.map((opt: string) => (
-                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                            )) || [];
-                          } catch {
-                            return [];
-                          }
+                          const config = typeof comp.config === "string"
+                            ? JSON.parse(comp.config || "{}")
+                            : comp.config || {};
+                          return config.options?.map((opt: string) => (
+                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                          )) || [];
                         })()}
                       </SelectContent>
                     </Select>

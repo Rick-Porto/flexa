@@ -31,14 +31,14 @@ export const api = {
   apps: {
     list: {
       method: 'GET' as const,
-      path: '/api/apps' as const,
+      path: '/api/AppEntity' as const,
       responses: {
         200: z.array(z.custom<typeof apps.$inferSelect & { owner: typeof users.$inferSelect }>()),
       },
     },
     create: {
       method: 'POST' as const,
-      path: '/api/apps' as const,
+      path: '/api/AppEntity' as const,
       input: insertAppSchema,
       responses: {
         201: z.custom<typeof apps.$inferSelect>(),
@@ -48,7 +48,7 @@ export const api = {
     },
     get: {
       method: 'GET' as const,
-      path: '/api/apps/:id' as const,
+      path: '/api/AppEntity/:id' as const,
       responses: {
         200: z.custom<typeof apps.$inferSelect>(),
         404: errorSchemas.notFound,
@@ -56,7 +56,7 @@ export const api = {
     },
     update: {
       method: 'PUT' as const,
-      path: '/api/apps/:id' as const,
+      path: '/api/AppEntity/:id' as const,
       input: insertAppSchema.partial(),
       responses: {
         200: z.custom<typeof apps.$inferSelect>(),
@@ -67,7 +67,7 @@ export const api = {
     },
     delete: {
       method: 'DELETE' as const,
-      path: '/api/apps/:id' as const,
+      path: '/api/AppEntity/:id' as const,
       responses: {
         204: z.void(),
         404: errorSchemas.notFound,
@@ -76,7 +76,7 @@ export const api = {
     },
     publish: {
       method: 'POST' as const,
-      path: '/api/apps/:id/publish' as const,
+      path: '/api/AppEntity/:id/publish' as const,
       responses: {
         200: z.custom<typeof apps.$inferSelect>(),
         404: errorSchemas.notFound,
@@ -85,16 +85,23 @@ export const api = {
     },
     unpublish: {
       method: 'POST' as const,
-      path: '/api/apps/:id/unpublish' as const,
+      path: '/api/AppEntity/:id/unpublish' as const,
       responses: {
         200: z.custom<typeof apps.$inferSelect>(),
         404: errorSchemas.notFound,
         401: errorSchemas.unauthorized,
       },
     },
+    published: {
+      method: 'GET' as const,
+      path: '/api/AppEntity' as const,
+      responses: {
+        200: z.array(z.custom<typeof apps.$inferSelect & { owner: typeof users.$inferSelect }>()),
+      },
+    },
     public: {
       method: 'GET' as const,
-      path: '/api/apps/public/:publicLink' as const,
+      path: '/api/AppEntity/public/:publicLink' as const,
       responses: {
         200: z.custom<typeof apps.$inferSelect>(),
         404: errorSchemas.notFound,
@@ -104,14 +111,22 @@ export const api = {
   screens: {
     list: {
       method: 'GET' as const,
-      path: '/api/apps/:appId/screens' as const,
+      path: '/api/screens' as const,
       responses: {
         200: z.array(z.custom<typeof screens.$inferSelect>()),
       },
     },
+    get: {
+      method: 'GET' as const,
+      path: '/api/screens/:id' as const,
+      responses: {
+        200: z.custom<typeof screens.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
     create: {
       method: 'POST' as const,
-      path: '/api/apps/:appId/screens' as const,
+      path: '/api/screens' as const,
       input: insertScreenSchema.omit({ appId: true }),
       responses: {
         201: z.custom<typeof screens.$inferSelect>(),
@@ -143,14 +158,22 @@ export const api = {
   components: {
     list: {
       method: 'GET' as const,
-      path: '/api/screens/:screenId/components' as const,
+      path: '/api/Component' as const,
       responses: {
         200: z.array(z.custom<typeof components.$inferSelect>()),
       },
     },
+    get: {
+      method: 'GET' as const,
+      path: '/api/Component/:id' as const,
+      responses: {
+        200: z.custom<typeof components.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
     create: {
       method: 'POST' as const,
-      path: '/api/screens/:screenId/components' as const,
+      path: '/api/Component' as const,
       input: insertComponentSchema.omit({ screenId: true }),
       responses: {
         201: z.custom<typeof components.$inferSelect>(),
@@ -160,7 +183,7 @@ export const api = {
     },
     update: {
       method: 'PUT' as const,
-      path: '/api/components/:id' as const,
+      path: '/api/Component/:id' as const,
       input: insertComponentSchema.partial().omit({ screenId: true }),
       responses: {
         200: z.custom<typeof components.$inferSelect>(),
@@ -171,7 +194,7 @@ export const api = {
     },
     delete: {
       method: 'DELETE' as const,
-      path: '/api/components/:id' as const,
+      path: '/api/Component/:id' as const,
       responses: {
         204: z.void(),
         404: errorSchemas.notFound,
@@ -182,14 +205,22 @@ export const api = {
   dataEntries: {
     list: {
       method: 'GET' as const,
-      path: '/api/apps/:appId/screens/:screenId/data' as const,
+      path: '/api/DataEntry' as const,
       responses: {
         200: z.array(z.custom<typeof dataEntries.$inferSelect>()),
       },
     },
+    get: {
+      method: 'GET' as const,
+      path: '/api/DataEntry/:id' as const,
+      responses: {
+        200: z.custom<typeof dataEntries.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
     create: {
       method: 'POST' as const,
-      path: '/api/apps/:appId/screens/:screenId/data' as const,
+      path: '/api/DataEntry' as const,
       input: insertDataEntrySchema.omit({ appId: true, screenId: true }),
       responses: {
         201: z.custom<typeof dataEntries.$inferSelect>(),
@@ -199,11 +230,20 @@ export const api = {
     },
     update: {
       method: 'PUT' as const,
-      path: '/api/data/:id' as const,
+      path: '/api/DataEntry/:id' as const,
       input: insertDataEntrySchema.partial().omit({ appId: true, screenId: true }),
       responses: {
         200: z.custom<typeof dataEntries.$inferSelect>(),
         400: errorSchemas.validation,
+        404: errorSchemas.notFound,
+        401: errorSchemas.unauthorized,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/DataEntry/:id' as const,
+      responses: {
+        204: z.void(),
         404: errorSchemas.notFound,
         401: errorSchemas.unauthorized,
       },

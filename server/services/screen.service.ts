@@ -50,7 +50,10 @@ export class ScreenService {
       // Mock data for frontend testing
       return {
         id: "new-mock-screen",
-        ...screen,
+        appId: screen.appId,
+        name: screen.name ?? null,
+        order: screen.order ?? 0,
+        metadata: (screen as any).metadata ?? {},
       };
     }
     
@@ -65,8 +68,8 @@ export class ScreenService {
         id,
         appId: "mock-app-1",
         name: screen.name || "Updated Screen",
-        order: screen.order || 0,
-        metadata: screen.metadata || {},
+        order: screen.order ?? 0,
+        metadata: (screen as any).metadata ?? {},
       };
     }
     

@@ -49,10 +49,6 @@ function Router() {
       <Route path="/app/public/:publicLink">
         <PublicApp />
       </Route>
-      {/* Short public link format */}
-      <Route path="/:publicLink">
-        <PublicApp />
-      </Route>
 
       {/* Protected Routes */}
       <Route path="/published">
@@ -91,6 +87,11 @@ function Router() {
 
       <Route path="/app/:id/data-table/:screenId">
         {user ? <DataTableScreen /> : <Redirect to="/" />}
+      </Route>
+
+      {/* Short public link format */}
+      <Route path="/:publicLink">
+        <PublicApp />
       </Route>
 
       {/* Fallback */}

@@ -42,15 +42,22 @@ const COMPONENT_TYPES = [
   { type: "dropdown", label: "Dropdown", icon: List },
 ];
 
-function parseConfig(config: string | null): Record<string, any> {
+function parseConfig(config: string | Record<string, any> | null): Record<string, any> {
   if (!config) return {};
-  try { return JSON.parse(config); } catch { return {}; }
+  if (typeof config === "string") {
+    try {
+      return JSON.parse(config);
+    } catch {
+      return {};
+    }
+  }
+  return config;
 }
 
 export default function Editor() {
   const { id } = useParams<{ id: string }>();
-  const [selectedScreenId, setSelectedScreenId] = useState<number | null>(null);
-  const [selectedComponentId, setSelectedComponentId] = useState<number | null>(null);
+  const [selectedScreenId, setSelectedScreenId] = useState<string | null>(null);
+  const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
   const [isNewScreenOpen, setIsNewScreenOpen] = useState(false);
   const [newScreenName, setNewScreenName] = useState("");
 
@@ -83,7 +90,7 @@ export default function Editor() {
   const handleCreateScreen = () => {
     if (!newScreenName.trim() || !id) return;
     createScreen.mutate(
-      { name: newScreenName, appEntityId: id },
+      { name: newScreenName, appId: id },
       {
         onSuccess: () => {
           setIsNewScreenOpen(false);
@@ -98,7 +105,7 @@ export default function Editor() {
     const count = components?.length || 0;
     const defaultConfig =
       type === "dropdown"
-        ? JSON.stringify({ options: ["Option 1", "Option 2"] })
+        ? { options: ["Option 1", "Option 2"] }
         : undefined;
 
     createComponent.mutate({
@@ -218,7 +225,7 @@ export default function Editor() {
                     className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
                     onClick={(e) => {
                       e.stopPropagation();
-                      deleteScreen.mutate({ id: screen.id, appEntityId: id });
+                      deleteScreen.mutate({ id: screen.id, appId: id });
                     }}
                   >
                     <Trash2 className="w-3 h-3" />
@@ -415,7 +422,7 @@ export default function Editor() {
   );
 }
 
-function DropdownOptionsEditor({ config, onChange }: { config: string | null; onChange: (config: string) => void }) {
+function DropdownOptionsEditor({ config, onChange }: { config: Record<string, any> | null; onChange: (config: Record<string, any>) => void }) {
   const parsed = parseConfig(config);
   const options: string[] = parsed.options || [];
   const [newOption, setNewOption] = useState("");
@@ -423,13 +430,13 @@ function DropdownOptionsEditor({ config, onChange }: { config: string | null; on
   const addOption = () => {
     if (!newOption.trim()) return;
     const updated = [...options, newOption.trim()];
-    onChange(JSON.stringify({ options: updated }));
+    onChange({ options: updated });
     setNewOption("");
   };
 
   const removeOption = (idx: number) => {
     const updated = options.filter((_, i) => i !== idx);
-    onChange(JSON.stringify({ options: updated }));
+    onChange({ options: updated });
   };
 
   return (
@@ -441,7 +448,7 @@ function DropdownOptionsEditor({ config, onChange }: { config: string | null; on
             onChange={(e) => {
               const updated = [...options];
               updated[idx] = e.target.value;
-              onChange(JSON.stringify({ options: updated }));
+              onChange({ options: updated });
             }}
             className="h-7 text-xs flex-1"
           />
