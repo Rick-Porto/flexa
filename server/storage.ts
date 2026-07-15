@@ -47,10 +47,14 @@ export class DatabaseStorage implements IAuthStorage {
     if (!db) {
       // Mock user for frontend testing
       return {
-        ...userData,
+        id: (userData as any).id ?? "mock-user",
+        email: (userData as any).email ?? null,
+        firstName: (userData as any).firstName ?? null,
+        lastName: (userData as any).lastName ?? null,
+        profileImageUrl: (userData as any).profileImageUrl ?? null,
         createdAt: new Date(),
         updatedAt: new Date(),
-      };
+      } as User;
     }
     const [user] = await db
       .insert(users)

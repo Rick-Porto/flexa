@@ -69,6 +69,7 @@ export class DataEntryService {
       return {
         id: "new-mock-entry",
         ...entry,
+        userId: (entry as any).userId ?? "mock-user",
         version: 1,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -78,7 +79,7 @@ export class DataEntryService {
     
     const [newEntry] = await db
       .insert(dataEntries)
-      .values(entry)
+      .values(entry as any)
       .returning();
     return newEntry;
   }
@@ -90,7 +91,7 @@ export class DataEntryService {
         id,
         appId: "mock-app-1",
         screenId: "mock-screen-1",
-        userId: "mock-user",
+        userId: (entry as any).userId ?? "mock-user",
         data: entry.data || { name: "Updated" },
         version: 2,
         createdAt: new Date(),

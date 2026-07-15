@@ -9,20 +9,20 @@ import type { ScreenRequest, ScreenResponse } from "@/types/api";
 
 const SCREENS_KEY = ["screens"] as const;
 
-export function useScreens(appEntityId: string | undefined) {
+export function useScreens(appId: string | undefined) {
   return useQuery<ScreenResponse[]>({
-    queryKey: SCREENS_KEY,
-    queryFn: () => ScreenService.getAll(),
+    queryKey: [...SCREENS_KEY, appId] as const,
+    queryFn: () => ScreenService.getAll(appId),
     select: (screens) =>
-      appEntityId
-        ? screens.filter((s) => s.appEntityId === appEntityId)
+      appId
+        ? screens.filter((s) => s.appEntityId === appId || s.appId === appId)
         : screens,
   });
 }
 
-export function useScreen(id: number | undefined) {
+export function useScreen(id: string | undefined) {
   return useQuery<ScreenResponse>({
-    queryKey: ["screens", id],
+    queryKey: ["screens", id] as const,
     queryFn: () => ScreenService.getById(id!),
     enabled: id !== undefined,
   });
@@ -48,7 +48,7 @@ export function useUpdateScreen() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation<void, Error, { id: number; data: ScreenRequest }>({
+  return useMutation<void, Error, { id: string; data: ScreenRequest }>({
     mutationFn: ({ id, data }) => ScreenService.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: SCREENS_KEY });
@@ -64,7 +64,7 @@ export function useDeleteScreen() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation<void, Error, { id: number; appEntityId: string }>({
+  return useMutation<void, Error, { id: string; appId: string }>({
     mutationFn: ({ id }) => ScreenService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: SCREENS_KEY });

@@ -71,7 +71,8 @@ export interface ScreenResponse {
   id: string;              // UUID
   name: string | null;
   description: string | null;
-  appId: string;
+  appId?: string;
+  appEntityId?: string;
   order: number;
   metadata: Record<string, any>;
   createdAt: string;

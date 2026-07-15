@@ -11,14 +11,17 @@
  * GET    /api/apps/public/:publicLink
  */
 
-import { api } from "./api-client";
+import api from "./api-client";
 import { api as apiRoutes } from "@shared/routes";
 import type { AppEntityRequest, AppEntityResponse, AppEntityPublishResponse, PublicAppResponse } from "../types/api";
 
 export const AppEntityService = {
   async getAll(): Promise<AppEntityResponse[]> {
     const res = await api.get<AppEntityResponse[]>(apiRoutes.apps.list.path);
-    return res.data;
+    return (res.data ?? []).map((app) => ({
+      ...app,
+      isPublished: Boolean(app.isPublished || app.publicLink),
+    }));
   },
 
   async getById(id: string): Promise<AppEntityResponse> {
@@ -47,6 +50,16 @@ export const AppEntityService = {
   async unpublish(id: string): Promise<AppEntityResponse> {
     const res = await api.post<AppEntityResponse>(apiRoutes.apps.unpublish.path.replace(':id', id));
     return res.data;
+  },
+
+  async getPublished(): Promise<AppEntityResponse[]> {
+    const res = await api.get<AppEntityResponse[]>(apiRoutes.apps.published.path);
+    return (res.data ?? [])
+      .filter((app) => app.isPublished || Boolean(app.publicLink))
+      .map((app) => ({
+        ...app,
+        isPublished: Boolean(app.isPublished || app.publicLink),
+      }));
   },
 
   async getPublic(publicLink: string): Promise<PublicAppResponse> {

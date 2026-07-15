@@ -24,16 +24,18 @@ export default function PublicApp() {
   const createDataEntry = useCreateDataEntry();
 
   const handleFormSubmit = (formData: Record<string, any>) => {
-    if (!currentScreen || !components) return;
+    if (!currentScreen || !components || !app) return;
 
-    // Create a DataEntry for each component with form data
     const mutations = components.map((comp) => {
       const key = comp.model || `field_${comp.id}`;
       const value = formData[key];
       return createDataEntry.mutateAsync({
-        screenId: currentScreen.id,
-        componentId: comp.id,
-        data: JSON.stringify({ value }),
+        appId: app.id,
+        data: {
+          screenId: currentScreen.id,
+          componentId: comp.id,
+          data: { value },
+        },
       });
     });
 

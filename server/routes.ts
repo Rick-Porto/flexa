@@ -17,16 +17,17 @@ export async function registerRoutes(
   // --- Apps ---
 
   app.get(api.apps.list.path, isAuthenticated, async (req, res) => {
-    const userId = (req.user as any).claims.sub;
+    const userId = ((req as any).user as any).claims.sub;
     const apps = await storage.apps.getAll(userId);
     res.json(apps);
   });
 
   app.post(api.apps.create.path, isAuthenticated, async (req, res) => {
     try {
+      const userId = ((req as any).user as any).claims.sub;
       const input = insertAppSchema.parse({
         ...req.body,
-        ownerId: (req.user as any).claims.sub
+        ownerId: userId,
       });
       const newApp = await storage.apps.create(input);
       res.status(201).json(newApp);
@@ -42,7 +43,7 @@ export async function registerRoutes(
   });
 
   app.get(api.apps.get.path, isAuthenticated, async (req, res) => {
-    const app = await storage.apps.getById(req.params.id);
+    const app = await storage.apps.getById(String(req.params.id));
     if (!app) {
       return res.status(404).json({ message: 'App not found' });
     }
@@ -55,14 +56,14 @@ export async function registerRoutes(
 
   app.put(api.apps.update.path, isAuthenticated, async (req, res) => {
     try {
-      const existing = await storage.apps.getById(req.params.id);
+      const existing = await storage.apps.getById(String(req.params.id));
       if (!existing) return res.status(404).json({ message: 'App not found' });
-      if (existing.ownerId !== (req.user as any).claims.sub) {
+      if (existing.ownerId !== ((req as any).user as any).claims.sub) {
         return res.status(403).json({ message: 'Unauthorized' });
       }
 
       const input = insertAppSchema.partial().parse(req.body);
-      const updated = await storage.apps.update(req.params.id, input);
+      const updated = await storage.apps.update(String(req.params.id), input);
       res.json(updated);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -76,30 +77,30 @@ export async function registerRoutes(
   });
 
   app.delete(api.apps.delete.path, isAuthenticated, async (req, res) => {
-    const existing = await storage.apps.getById(req.params.id);
+    const existing = await storage.apps.getById(String(req.params.id));
     if (!existing) return res.status(404).json({ message: 'App not found' });
-    if (existing.ownerId !== (req.user as any).claims.sub) {
+    if (existing.ownerId !== ((req as any).user as any).claims.sub) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    await storage.apps.delete(req.params.id);
+    await storage.apps.delete(String(req.params.id));
     res.status(204).send();
   });
 
   // Publish app
   app.post(api.apps.publish.path, isAuthenticated, async (req, res) => {
     try {
-      const existing = await storage.apps.getById(req.params.id);
+      const existing = await storage.apps.getById(String(req.params.id));
       if (!existing) return res.status(404).json({ message: 'App not found' });
-      if (existing.ownerId !== (req.user as any).claims.sub) {
+      if (existing.ownerId !== ((req as any).user as any).claims.sub) {
         return res.status(403).json({ message: 'Unauthorized' });
       }
 
       // Generate unique public link if not already published
       const publicLink = existing.publicLink || crypto.randomUUID().slice(0, 8);
-      const updated = await storage.apps.update(req.params.id, {
+      const updated = await storage.apps.update(String(req.params.id), ({
         isPublished: true,
         publicLink,
-      });
+      } as any));
       res.json(updated);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -115,17 +116,32 @@ export async function registerRoutes(
   // Unpublish app
   app.post(api.apps.unpublish.path, isAuthenticated, async (req, res) => {
     try {
-      const existing = await storage.apps.getById(req.params.id);
+      const existing = await storage.apps.getById(String(req.params.id));
       if (!existing) return res.status(404).json({ message: 'App not found' });
-      if (existing.ownerId !== (req.user as any).claims.sub) {
+      if (existing.ownerId !== ((req as any).user as any).claims.sub) {
         return res.status(403).json({ message: 'Unauthorized' });
       }
-
-      const updated = await storage.apps.update(req.params.id, {
+      const updated = await storage.apps.update(String(req.params.id), ({
         isPublished: false,
         publicLink: null,
-      });
+      } as any));
       res.json(updated);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
+  });
+
+  // Get published apps
+  app.get(api.apps.published.path, async (req, res) => {
+    try {
+      const apps = await storage.apps.getPublished();
+      res.json(apps);
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({
@@ -141,11 +157,14 @@ export async function registerRoutes(
   app.get(api.apps.public.path, async (req, res) => {
     try {
       const { publicLink } = req.params;
-      const app = await storage.apps.getByPublicLink(publicLink);
-      if (!app || !app.isPublished) {
+      const result = await storage.apps.getPublicAppWithScreens(publicLink);
+      if (!result || !result.app.isPublished) {
         return res.status(404).json({ message: 'App not found or not published' });
       }
-      res.json(app);
+      res.json({
+        ...result.app,
+        screens: result.screens,
+      });
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({
@@ -160,7 +179,7 @@ export async function registerRoutes(
   // --- Screens ---
 
   app.get(api.screens.list.path, isAuthenticated, async (req, res) => {
-    const screens = await storage.screens.getAll(req.params.appId);
+    const screens = await storage.screens.getAll(String(req.params.appId));
     res.json(screens);
   });
 
@@ -186,7 +205,7 @@ export async function registerRoutes(
   app.put(api.screens.update.path, isAuthenticated, async (req, res) => {
     try {
       const input = insertScreenSchema.partial().omit({ appId: true }).parse(req.body);
-      const updated = await storage.screens.update(req.params.id, input);
+      const updated = await storage.screens.update(String(req.params.id), input);
       if (!updated) return res.status(404).json({ message: 'Screen not found' });
       res.json(updated);
     } catch (err) {
@@ -201,14 +220,14 @@ export async function registerRoutes(
   });
 
   app.delete(api.screens.delete.path, isAuthenticated, async (req, res) => {
-    await storage.screens.delete(req.params.id);
+    await storage.screens.delete(String(req.params.id));
     res.status(204).send();
   });
 
   // --- Components ---
 
   app.get(api.components.list.path, isAuthenticated, async (req, res) => {
-    const components = await storage.components.getAll(req.params.screenId);
+    const components = await storage.components.getAll(String(req.params.screenId));
     res.json(components);
   });
 
@@ -234,7 +253,7 @@ export async function registerRoutes(
   app.put(api.components.update.path, isAuthenticated, async (req, res) => {
     try {
       const input = insertComponentSchema.partial().omit({ screenId: true }).parse(req.body);
-      const updated = await storage.components.update(req.params.id, input);
+      const updated = await storage.components.update(String(req.params.id), input);
       if (!updated) return res.status(404).json({ message: 'Component not found' });
       res.json(updated);
     } catch (err) {
@@ -249,14 +268,14 @@ export async function registerRoutes(
   });
 
   app.delete(api.components.delete.path, isAuthenticated, async (req, res) => {
-    await storage.components.delete(req.params.id);
+    await storage.components.delete(String(req.params.id));
     res.status(204).send();
   });
 
   // --- Data Entries ---
 
   app.get(api.dataEntries.list.path, isAuthenticated, async (req, res) => {
-    const entries = await storage.dataEntries.getAll(req.params.appId, req.params.screenId);
+    const entries = await storage.dataEntries.getAll(String(req.params.appId), String(req.params.screenId));
     res.json(entries);
   });
 
@@ -266,9 +285,10 @@ export async function registerRoutes(
         ...req.body,
         appId: req.params.appId,
         screenId: req.params.screenId,
-        userId: (req.user as any).claims.sub
       });
-      const newEntry = await storage.dataEntries.create(input);
+      // attach userId for storage layer
+      const userId = ((req as any).user as any).claims.sub;
+      const newEntry = await storage.dataEntries.create({ ...input, userId } as any);
       res.status(201).json(newEntry);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -281,10 +301,21 @@ export async function registerRoutes(
     }
   });
 
+  app.get(api.dataEntries.get.path, isAuthenticated, async (req, res) => {
+    const entry = await storage.dataEntries.getById(String(req.params.id));
+    if (!entry) return res.status(404).json({ message: 'Data Entry not found' });
+    res.json(entry);
+  });
+
   app.put(api.dataEntries.update.path, isAuthenticated, async (req, res) => {
     try {
-      const input = insertDataEntrySchema.partial().omit({ appId: true, screenId: true, userId: true }).parse(req.body);
-      const updated = await storage.dataEntries.update(req.params.id, input);
+      const parsed = insertDataEntrySchema.partial().parse(req.body) as any;
+      // ensure we don't accept client-supplied appId/screenId/userId
+      delete parsed.appId;
+      delete parsed.screenId;
+      delete parsed.userId;
+      const input = parsed;
+      const updated = await storage.dataEntries.update(String(req.params.id), input);
       if (!updated) return res.status(404).json({ message: 'Data Entry not found' });
       res.json(updated);
     } catch (err) {
@@ -296,6 +327,11 @@ export async function registerRoutes(
       }
       throw err;
     }
+  });
+
+  app.delete(api.dataEntries.delete.path, isAuthenticated, async (req, res) => {
+    await storage.dataEntries.delete(String(req.params.id));
+    res.status(204).send();
   });
 
   return httpServer;

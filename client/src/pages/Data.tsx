@@ -19,12 +19,16 @@ import { ChevronLeft, Database, Table2, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import type { ComponentResponse, DataEntryResponse } from "@/types/api";
 
-function parseData(dataStr: string): Record<string, any> {
-  try {
-    return JSON.parse(dataStr);
-  } catch {
-    return {};
+function parseData(dataStrOrObj: any): Record<string, any> {
+  if (typeof dataStrOrObj === "string") {
+    try {
+      return JSON.parse(dataStrOrObj);
+    } catch {
+      return {};
+    }
   }
+  if (typeof dataStrOrObj === "object" && dataStrOrObj !== null) return dataStrOrObj;
+  return {};
 }
 
 function CellValue({ value, elementType }: { value: any; elementType: string }) {
@@ -51,9 +55,9 @@ function CellValue({ value, elementType }: { value: any; elementType: string }) 
   return <span>{String(value)}</span>;
 }
 
-function ScreenDataTable({ screenId }: { screenId: number }) {
+function ScreenDataTable({ appId, screenId }: { appId: string; screenId: string }) {
   const { data: components = [], isLoading: isLoadingComponents } = useComponents(screenId);
-  const { data: entries = [], isLoading: isLoadingEntries } = useDataEntries(screenId);
+  const { data: entries = [], isLoading: isLoadingEntries } = useDataEntries(appId, screenId);
 
   const sortedComponents = [...components].sort((a, b) => a.order - b.order);
 
@@ -134,7 +138,7 @@ function ScreenDataTable({ screenId }: { screenId: number }) {
           ) : (
             groups.map((group, rowIdx) => {
               // Build a map of componentId -> entry value for this group
-              const valueMap: Record<number, any> = {};
+              const valueMap: Record<string, any> = {};
               for (const entry of group) {
                 const parsed = parseData(entry.data);
                 valueMap[entry.componentId] = parsed.value;
@@ -235,7 +239,7 @@ export default function Data() {
                     Showing all submitted entries for this screen
                   </p>
                 </div>
-                <ScreenDataTable screenId={screen.id} />
+                <ScreenDataTable appId={id} screenId={screen.id} />
               </TabsContent>
             ))}
           </Tabs>

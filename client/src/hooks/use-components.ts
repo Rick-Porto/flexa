@@ -7,11 +7,11 @@ import { useToast } from "@/hooks/use-toast";
 import { ComponentService } from "@/api/componentService";
 import type { ComponentRequest, ComponentResponse } from "@/types/api";
 
-const componentsKey = (screenId: number) => ["components", screenId] as const;
+const componentsKey = (screenId: string) => ["components", screenId] as const;
 
-export function useComponents(screenId: number | undefined) {
+export function useComponents(screenId: string | undefined) {
   return useQuery<ComponentResponse[]>({
-    queryKey: componentsKey(screenId ?? -1),
+    queryKey: componentsKey(screenId ?? ""),
     queryFn: () => ComponentService.getByScreen(screenId!),
     enabled: screenId !== undefined,
   });
@@ -40,7 +40,7 @@ export function useUpdateComponent() {
   return useMutation<
     ComponentResponse,
     Error,
-    { id: number; screenId: number; data: ComponentRequest }
+    { id: string; screenId: string; data: ComponentRequest }
   >({
     mutationFn: ({ id, data }) => ComponentService.update(id, data),
     onSuccess: (_, { screenId }) => {
@@ -57,7 +57,7 @@ export function useDeleteComponent() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation<void, Error, { id: number; screenId: number }>({
+  return useMutation<void, Error, { id: string; screenId: string }>({
     mutationFn: ({ id }) => ComponentService.delete(id),
     onSuccess: (_, { screenId }) => {
       queryClient.invalidateQueries({ queryKey: componentsKey(screenId) });

@@ -22,13 +22,16 @@ export function DynamicForm({ components, onSubmit, isSubmitting }: DynamicFormP
 
   const sortedComponents = [...components].sort((a, b) => a.order - b.order);
 
-  const parseConfig = (config: string | null): Record<string, any> => {
+  const parseConfig = (config: Record<string, any> | string | null): Record<string, any> => {
     if (!config) return {};
-    try {
-      return JSON.parse(config);
-    } catch {
-      return {};
+    if (typeof config === "string") {
+      try {
+        return JSON.parse(config);
+      } catch {
+        return {};
+      }
     }
+    return config;
   };
 
   const renderField = (comp: ComponentResponse) => {
