@@ -9,7 +9,9 @@ import { supabase } from "../lib/supabase";
 import type { ApiErrorResponse } from "../types/api";
 
 const api: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000",
+  baseURL:
+    import.meta.env.VITE_API_BASE_URL ||
+    (import.meta.env.DEV ? window.location.origin : "http://localhost:5000"),
   headers: {
     "Content-Type": "application/json",
   },

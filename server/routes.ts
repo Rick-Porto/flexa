@@ -275,16 +275,20 @@ export async function registerRoutes(
   // --- Data Entries ---
 
   app.get(api.dataEntries.list.path, isAuthenticated, async (req, res) => {
-    const entries = await storage.dataEntries.getAll(String(req.params.appId), String(req.params.screenId));
+    const appId = String(req.params.appId ?? (req.query.appId as string) ?? "");
+    const screenId = String(req.params.screenId ?? (req.query.screenId as string) ?? "");
+    const entries = await storage.dataEntries.getAll(appId, screenId);
     res.json(entries);
   });
 
   app.post(api.dataEntries.create.path, isAuthenticated, async (req, res) => {
     try {
+      const appId = String(req.params.appId ?? req.body?.appId ?? "");
+      const screenId = String(req.params.screenId ?? req.body?.screenId ?? "");
       const input = insertDataEntrySchema.parse({
         ...req.body,
-        appId: req.params.appId,
-        screenId: req.params.screenId,
+        appId,
+        screenId,
       });
       // attach userId for storage layer
       const userId = ((req as any).user as any).claims.sub;

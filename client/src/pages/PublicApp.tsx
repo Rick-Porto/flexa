@@ -32,9 +32,10 @@ export default function PublicApp() {
       return createDataEntry.mutateAsync({
         appId: app.id,
         data: {
-          screenId: currentScreen.id,
-          componentId: comp.id,
-          data: { value },
+          screenId: Number(currentScreen.id),
+          componentId: Number(comp.id),
+          data: JSON.stringify({ value }),
+          config: null,
         },
       });
     });

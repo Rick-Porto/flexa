@@ -51,20 +51,26 @@ export class AppService {
   }
 
   async getByPublicLink(publicLink: string): Promise<App | undefined> {
-    const [app] = await db.select().from(apps).where(eq(apps.publicLink, publicLink));
+    const dbConn = db;
+    if (!dbConn) return undefined;
+
+    const [app] = await dbConn.select().from(apps).where(eq(apps.publicLink, publicLink));
     return app;
   }
 
   async getPublicAppWithScreens(publicLink: string): Promise<{ app: App; screens: any[] } | undefined> {
-    const [app] = await db.select().from(apps).where(eq(apps.publicLink, publicLink));
+    const dbConn = db;
+    if (!dbConn) return undefined;
+
+    const [app] = await dbConn.select().from(apps).where(eq(apps.publicLink, publicLink));
     if (!app || !app.isPublished) return undefined;
 
     // Get screens for this app
-    const appScreens = await db.select().from(screens).where(eq(screens.appId, app.id)).orderBy(screens.order);
+    const appScreens = await dbConn.select().from(screens).where(eq(screens.appId, app.id)).orderBy(screens.order);
 
     // Get components for each screen
     const screensWithComponents = await Promise.all(appScreens.map(async (screenRow) => {
-      const screenComponents = await db!.select().from(components).where(eq(components.screenId, screenRow.id));
+      const screenComponents = await dbConn.select().from(components).where(eq(components.screenId, screenRow.id));
       return { ...screenRow, components: screenComponents };
     }));
 
@@ -72,6 +78,8 @@ export class AppService {
   }
 
   async getPublished(): Promise<(App & { owner: typeof users.$inferSelect })[]> {
+    if (!db) return [];
+
     const query = db.select().from(apps).leftJoin(users, eq(apps.ownerId, users.id)).where(eq(apps.isPublished, true));
 
     const results = await query;

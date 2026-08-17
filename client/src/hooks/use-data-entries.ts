@@ -7,8 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { DataEntryService } from "@/api/dataEntryService";
 import type { DataEntryRequest, DataEntryResponse } from "@/types/api";
 
-const dataEntriesKey = (appId: string, screenId: string) =>
-  ["dataEntries", appId, screenId] as const;
+const dataEntriesKey = (appId: string, screenId: string | number) =>
+  ["dataEntries", appId, String(screenId)] as const;
 
 export function useDataEntries(appId: string | undefined, screenId: string | undefined) {
   return useQuery<DataEntryResponse[]>({
@@ -22,12 +22,14 @@ export function useCreateDataEntry() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation<DataEntryResponse, Error, { appId: string; data: DataEntryRequest }>({
-    mutationFn: ({ appId, data }) => DataEntryService.create(appId, data),
+  return useMutation<DataEntryResponse, Error, { appId?: string; data: DataEntryRequest }>({
+    mutationFn: ({ data }) => DataEntryService.create(data),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: dataEntriesKey(variables.appId, variables.data.screenId),
-      });
+      if (variables.appId) {
+        queryClient.invalidateQueries({
+          queryKey: dataEntriesKey(variables.appId, variables.data.screenId),
+        });
+      }
       toast({ title: "Entrada registrada com sucesso" });
     },
     onError: (err) => {
@@ -44,8 +46,8 @@ export function useDeleteDataEntry() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation<void, Error, { id: string; appId: string; screenId: string }>({
-    mutationFn: ({ id }) => DataEntryService.delete(id),
+  return useMutation<void, Error, { id: string | number; appId: string; screenId: string | number }>({
+    mutationFn: ({ id }) => DataEntryService.delete(String(id)),
     onSuccess: (_, { appId, screenId }) => {
       queryClient.invalidateQueries({
         queryKey: dataEntriesKey(appId, screenId),
@@ -69,9 +71,9 @@ export function useUpdateDataEntry() {
   return useMutation<
     DataEntryResponse,
     Error,
-    { id: string; appId: string; screenId: string; data: DataEntryRequest }
+    { id: string | number; appId: string; screenId: string | number; data: DataEntryRequest }
   >({
-    mutationFn: ({ id, data }) => DataEntryService.update(id, data),
+    mutationFn: ({ id, data }) => DataEntryService.update(String(id), data),
     onSuccess: (_, { appId, screenId }) => {
       queryClient.invalidateQueries({
         queryKey: dataEntriesKey(appId, screenId),

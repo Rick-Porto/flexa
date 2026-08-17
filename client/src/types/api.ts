@@ -116,18 +116,18 @@ export interface ComponentResponse {
 // ============================================================================
 
 export interface DataEntryRequest {
-  config?: Record<string, any>;
-  data?: Record<string, any>;
-  screenId: string;        // UUID
-  componentId: string;     // UUID
+  config?: string | Record<string, any> | null;
+  data?: string | Record<string, any>;
+  screenId: number | string;
+  componentId: number | string;
 }
 
 export interface DataEntryResponse {
-  id: string;              // UUID
-  config: Record<string, any> | null;
-  data: Record<string, any>;   // JSON object
-  screenId: string;
-  componentId: string;
+  id: number | string;
+  config: string | Record<string, any> | null;
+  data: string | Record<string, any>;
+  screenId: number | string;
+  componentId: number | string;
   createdAt: string;
   updatedAt: string;
 }

@@ -37,8 +37,8 @@ import { useScreen, useScreens } from "@/hooks/use-screens";
 import { format } from "date-fns";
 
 interface DataEntryRow {
-  id: string;
-  screenId: string;
+  id: string | number;
+  screenId: string | number;
   userId?: string;
   data: Record<string, unknown>;
   createdAt: string;
@@ -137,9 +137,9 @@ export default function DataTableScreen() {
 
     try {
       await updateEntry.mutateAsync({
-        id: editingEntry.id,
+        id: Number(editingEntry.id),
         appId,
-        screenId: editingEntry.screenId,
+        screenId: Number(editingEntry.screenId),
         data: payload as any,
       });
       setEditDialogOpen(false);
@@ -302,7 +302,7 @@ export default function DataTableScreen() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDelete(entry.id)}
+                              onClick={() => handleDelete(String(entry.id))}
                               className="h-8 w-8 text-muted-foreground hover:text-destructive"
                             >
                               <Trash2 className="w-4 h-4" />
