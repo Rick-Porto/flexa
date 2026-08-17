@@ -369,7 +369,7 @@ export default function Editor() {
                   <div className="space-y-2">
                     <Label className="text-xs">Dropdown Options</Label>
                     <DropdownOptionsEditor
-                      config={selectedComponent.config}
+                      config={typeof selectedComponent.config === "string" ? parseConfig(selectedComponent.config) : selectedComponent.config}
                       onChange={(newConfig) =>
                         handleUpdateComponent(selectedComponent, { config: newConfig })
                       }
