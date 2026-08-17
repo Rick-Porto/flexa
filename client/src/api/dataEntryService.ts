@@ -34,13 +34,35 @@ export const DataEntryService = {
     return res.data;
   },
 
-  async create(_appId: string, payload: DataEntryRequest): Promise<DataEntryResponse> {
-    const res = await api.post<DataEntryResponse>(apiRoutes.dataEntries.create.path, payload);
+  async create(payload: DataEntryRequest): Promise<DataEntryResponse> {
+    const body = {
+      ...payload,
+      data: typeof payload.data === "string" ? payload.data : JSON.stringify(payload.data ?? {}),
+      config:
+        payload.config == null
+          ? null
+          : typeof payload.config === "string"
+            ? payload.config
+            : JSON.stringify(payload.config),
+    };
+
+    const res = await api.post<DataEntryResponse>(apiRoutes.dataEntries.create.path, body);
     return res.data;
   },
 
   async update(id: string, payload: DataEntryRequest): Promise<DataEntryResponse> {
-    const res = await api.put<DataEntryResponse>(apiRoutes.dataEntries.update.path.replace(':id', id), payload);
+    const body = {
+      ...payload,
+      data: typeof payload.data === "string" ? payload.data : JSON.stringify(payload.data ?? {}),
+      config:
+        payload.config == null
+          ? null
+          : typeof payload.config === "string"
+            ? payload.config
+            : JSON.stringify(payload.config),
+    };
+
+    const res = await api.put<DataEntryResponse>(apiRoutes.dataEntries.update.path.replace(':id', id), body);
     return res.data;
   },
 

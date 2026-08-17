@@ -35,6 +35,17 @@ export default defineConfig({
   server: {
     port: 3000,
     host: "localhost",
+    proxy: {
+      "/api": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+      },
+      "/vite-hmr": {
+        target: "http://localhost:5000",
+        ws: true,
+        changeOrigin: true,
+      },
+    },
     fs: {
       strict: true,
       deny: ["**/.*"],
