@@ -89,11 +89,11 @@ export interface ComponentRequest {
   elementType: string;     // required — "text", "select", "checkbox", etc.
   label: string;           // required
   model?: string;
-  config?: Record<string, any>;
+  config?: string | Record<string, any> | null;
   order?: number;
   required?: boolean;
   validationRule?: string;
-  screenId: string;        // UUID
+  screenId: string | number;        // UUID or int depending on API
 }
 
 export interface ComponentResponse {
@@ -101,11 +101,11 @@ export interface ComponentResponse {
   elementType: string;
   label: string;
   model: string | null;
-  config: Record<string, any>;
+  config: string | Record<string, any> | null;
   order: number;
   required: boolean;
   validationRule: string | null;
-  screenId: string;
+  screenId: string | number;
   createdAt: string;
   updatedAt: string;
   dataEntries: DataEntryResponse[];

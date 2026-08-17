@@ -24,7 +24,7 @@ export function useCreateComponent() {
   return useMutation<ComponentResponse, Error, ComponentRequest>({
     mutationFn: (data) => ComponentService.create(data),
     onSuccess: (_, data) => {
-      queryClient.invalidateQueries({ queryKey: componentsKey(data.screenId) });
+      queryClient.invalidateQueries({ queryKey: componentsKey(String(data.screenId)) });
       toast({ title: "Componente adicionado" });
     },
     onError: (err) => {
