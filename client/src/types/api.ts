@@ -116,6 +116,7 @@ export interface ComponentResponse {
 // ============================================================================
 
 export interface DataEntryRequest {
+  appId?: string;
   config?: string | Record<string, any> | null;
   data?: string | Record<string, any>;
   screenId: number | string;
