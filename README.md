@@ -1,4 +1,4 @@
-# Frontend | Português (Brasil) / English (United States)
+# FLEXA - Frontend
 
 ## Português (Brasil)
 
