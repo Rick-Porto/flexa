@@ -5,6 +5,31 @@ import { createServer } from "http";
 
 const app = express();
 const httpServer = createServer(app);
+const allowedOrigins = new Set(
+  (
+    process.env.CORS_ORIGINS ||
+    "https://flexa-theta.vercel.app,https://flexa-orcin.vercel.app,http://localhost:3000"
+  )
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+);
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.vary("Origin");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Authorization,Content-Type");
+  }
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
 
 declare module "http" {
   interface IncomingMessage {
