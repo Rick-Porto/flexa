@@ -135,7 +135,7 @@ export function DynamicForm({ components, onSubmit, isSubmitting }: DynamicFormP
       {sortedComponents.map((comp) => (
         <div key={comp.id} className="space-y-2">
           {comp.elementType !== "checkbox" && (
-            <Label htmlFor={String(comp.id)}>
+            <Label htmlFor={String(comp.id)} className="block max-w-full break-words text-sm font-medium leading-none">
               {comp.label}
               {comp.required && <span className="text-destructive ml-1">*</span>}
             </Label>

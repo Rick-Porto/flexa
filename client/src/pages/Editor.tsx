@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "wouter";
 import { useApp } from "@/hooks/use-apps";
 import { useScreens, useCreateScreen, useDeleteScreen } from "@/hooks/use-screens";
@@ -20,7 +20,8 @@ import {
   Save,
   Settings,
   Database,
-  X
+  X,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -60,6 +61,10 @@ export default function Editor() {
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
   const [isNewScreenOpen, setIsNewScreenOpen] = useState(false);
   const [newScreenName, setNewScreenName] = useState("");
+  const [componentLabelDraft, setComponentLabelDraft] = useState("");
+  const savedComponentLabel = useRef<string | null>(null);
+  const canvasRef = useRef<HTMLElement>(null);
+  const scrollToNewComponent = useRef(false);
 
   const { data: app, isLoading: isAppLoading } = useApp(id);
   const { data: screens = [] } = useScreens(id);
@@ -85,7 +90,26 @@ export default function Editor() {
     setSelectedComponentId(null);
   }, [selectedScreenId]);
 
-  const selectedComponent = components?.find(c => c.id === selectedComponentId) ?? null;
+  const selectedComponent = components?.find(c => String(c.id) === selectedComponentId) ?? null;
+
+  useEffect(() => {
+    setComponentLabelDraft(selectedComponent?.label ?? "");
+    savedComponentLabel.current = selectedComponent?.label ?? null;
+  }, [selectedComponent?.id, selectedComponent?.label]);
+
+  useEffect(() => {
+    if (!scrollToNewComponent.current || components.length === 0) return;
+
+    scrollToNewComponent.current = false;
+    const frame = window.requestAnimationFrame(() => {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        canvas.scrollTo({ top: canvas.scrollHeight, behavior: "smooth" });
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [components.length]);
 
   const handleCreateScreen = () => {
     if (!newScreenName.trim() || !id) return;
@@ -102,6 +126,7 @@ export default function Editor() {
 
   const handleAddComponent = (type: string) => {
     if (selectedScreenId === null) return;
+    scrollToNewComponent.current = true;
     const count = components?.length || 0;
     const defaultConfig =
       type === "dropdown"
@@ -136,6 +161,12 @@ export default function Editor() {
     });
   };
 
+  const handleSaveComponentLabel = () => {
+    if (!selectedComponent || componentLabelDraft === savedComponentLabel.current) return;
+    savedComponentLabel.current = componentLabelDraft;
+    handleUpdateComponent(selectedComponent, { label: componentLabelDraft });
+  };
+
   if (isAppLoading || !app) {
     return (
       <div className="h-screen flex items-center justify-center">
@@ -145,40 +176,40 @@ export default function Editor() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
+    <div className="min-h-screen md:h-screen flex flex-col bg-background overflow-x-hidden md:overflow-hidden">
       {/* Header */}
-      <header className="h-16 border-b border-border flex items-center justify-between px-6 bg-card shrink-0">
+      <header className="min-h-16 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3 sm:px-6 py-3 sm:py-0 bg-card shrink-0">
         <div className="flex items-center gap-4">
           <Link href="/">
             <Button variant="ghost" size="icon">
               <ChevronLeft className="w-5 h-5" />
             </Button>
           </Link>
-          <div>
-            <h1 className="font-bold text-lg">{app.name ?? "Untitled App"}</h1>
+          <div className="min-w-0">
+            <h1 className="font-bold text-lg truncate">{app.name ?? "Untitled App"}</h1>
             <p className="text-xs text-muted-foreground">Editor Mode</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Link href={`/app/${id}/data`}>
-            <Button variant="outline" className="gap-2">
-              <Database className="w-4 h-4" /> Data
+        <div className="flex w-full sm:w-auto gap-2">
+          <Link href={`/app/${id}/data`} className="flex-1 sm:flex-none">
+            <Button variant="outline" aria-label="Open data view" title="Data" className="w-full gap-2 px-2 sm:w-auto sm:px-4">
+              <Database className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Data</span>
             </Button>
           </Link>
-          <Link href={`/app/${id}/preview`}>
-            <Button variant="outline" className="gap-2">
-              <Save className="w-4 h-4" /> Preview App
+          <Link href={`/app/${id}/preview`} className="flex-1 sm:flex-none">
+            <Button variant="outline" aria-label="Preview app" title="Preview App" className="w-full gap-2 px-2 sm:w-auto sm:px-4">
+              <Save className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Preview App</span>
             </Button>
           </Link>
-          <Button className="gap-2 btn-primary">
+          <Button className="flex-1 gap-2 px-2 sm:px-4 btn-primary">
             Publish
           </Button>
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col md:flex-row md:overflow-hidden">
         {/* Left Sidebar: Screens */}
-        <aside className="w-64 border-r border-border bg-card flex flex-col shrink-0">
+        <aside className="w-full max-h-56 md:max-h-none md:w-64 border-b md:border-b-0 md:border-r border-border bg-card flex flex-col shrink-0">
           <div className="p-4 border-b border-border flex justify-between items-center">
             <h2 className="font-semibold text-sm">Screens</h2>
             <Dialog open={isNewScreenOpen} onOpenChange={setIsNewScreenOpen}>
@@ -237,8 +268,8 @@ export default function Editor() {
         </aside>
 
         {/* Center: Canvas */}
-        <main className="flex-1 bg-muted/30 p-8 overflow-auto flex justify-center">
-          <div className="w-full max-w-2xl bg-card rounded-xl shadow-lg border border-border min-h-[600px] flex flex-col">
+        <main ref={canvasRef} className="min-w-0 min-h-0 flex-1 bg-muted/30 p-3 pb-24 sm:p-8 sm:pb-24 overflow-auto flex items-start justify-center">
+          <div className="h-max w-full max-w-2xl shrink-0 bg-card rounded-xl shadow-lg border border-border min-h-[480px] sm:min-h-[600px] flex flex-col">
             <div className="p-6 border-b border-border">
               <h2 className="text-2xl font-bold">
                 {screens?.find((s) => s.id === selectedScreenId)?.name ?? "Select a screen"}
@@ -258,11 +289,12 @@ export default function Editor() {
                       key={comp.id}
                       className={cn(
                         "group relative p-4 rounded-lg border transition-all cursor-pointer",
-                        selectedComponentId === comp.id
+                        String(comp.id).startsWith("optimistic-") && "border-primary/40 bg-primary/5",
+                        selectedComponentId === String(comp.id)
                           ? "border-primary bg-primary/5 ring-1 ring-primary/30"
                           : "border-transparent hover:border-primary/50 hover:bg-primary/5"
                       )}
-                      onClick={() => setSelectedComponentId(comp.id)}
+                      onClick={() => setSelectedComponentId(String(comp.id))}
                     >
                       <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 flex gap-1">
                         <Button
@@ -275,7 +307,7 @@ export default function Editor() {
                               id: comp.id,
                               screenId: selectedScreenId!,
                             });
-                            if (selectedComponentId === comp.id) {
+                            if (selectedComponentId === String(comp.id)) {
                               setSelectedComponentId(null);
                             }
                           }}
@@ -283,10 +315,16 @@ export default function Editor() {
                           <Trash2 className="w-3 h-3" />
                         </Button>
                       </div>
-                      <Label className="pointer-events-none">
+                      <Label className="pointer-events-none block max-w-full break-words text-base font-semibold leading-6 md:text-lg md:leading-7">
                         {comp.label}
                         {comp.required && <span className="text-destructive ml-1">*</span>}
                       </Label>
+                      {String(comp.id).startsWith("optimistic-") && createComponent.isPending && (
+                        <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground" role="status">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Creating component...
+                        </div>
+                      )}
                       <div className="mt-2 pointer-events-none opacity-60">
                         {comp.elementType === "checkbox" ? (
                           <div className="flex items-center gap-2">
@@ -307,7 +345,7 @@ export default function Editor() {
         </main>
 
         {/* Right Sidebar: Components & Properties */}
-        <aside className="w-72 border-l border-border bg-card flex flex-col shrink-0">
+        <aside className="w-full md:w-72 border-t md:border-t-0 md:border-l border-border bg-card flex flex-col shrink-0">
           <div className="p-4 border-b border-border">
             <h2 className="font-semibold text-sm">
               {selectedComponent ? "Properties" : "Components"}
@@ -332,8 +370,16 @@ export default function Editor() {
                 <div className="space-y-2">
                   <Label className="text-xs">Label</Label>
                   <Input
-                    value={selectedComponent.label}
-                    onChange={(e) => handleUpdateComponent(selectedComponent, { label: e.target.value })}
+                    value={componentLabelDraft}
+                    onChange={(e) => setComponentLabelDraft(e.target.value)}
+                    onBlur={handleSaveComponentLabel}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleSaveComponentLabel();
+                        e.currentTarget.blur();
+                      }
+                    }}
                   />
                 </div>
 
@@ -395,7 +441,7 @@ export default function Editor() {
                       variant="outline"
                       className="h-20 flex flex-col gap-2 hover:border-primary hover:text-primary transition-all"
                       onClick={() => handleAddComponent(item.type)}
-                      disabled={selectedScreenId === null}
+                      disabled={selectedScreenId === null || createComponent.isPending}
                     >
                       <item.icon className="w-6 h-6" />
                       <span className="text-xs">{item.label}</span>

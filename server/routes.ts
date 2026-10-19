@@ -227,7 +227,11 @@ export async function registerRoutes(
   // --- Components ---
 
   app.get(api.components.list.path, isAuthenticated, async (req, res) => {
-    const components = await storage.components.getAll(String(req.params.screenId));
+    const screenId = req.query.screenId;
+    if (typeof screenId !== "string" || !screenId) {
+      return res.status(400).json({ error: "screenId query parameter is required" });
+    }
+    const components = await storage.components.getAll(screenId);
     res.json(components);
   });
 
@@ -235,7 +239,7 @@ export async function registerRoutes(
     try {
       const input = insertComponentSchema.parse({
         ...req.body,
-        screenId: req.params.screenId
+        screenId: req.params.screenId ?? req.body.screenId
       });
       const newComponent = await storage.components.create(input);
       res.status(201).json(newComponent);
