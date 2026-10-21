@@ -7,14 +7,20 @@ import { useToast } from "@/hooks/use-toast";
 import { ComponentService } from "@/api/componentService";
 import type { ComponentRequest, ComponentResponse } from "@/types/api";
 
-const componentsKey = (screenId: string) => ["components", screenId] as const;
+const componentsKey = (screenId: string, appId?: string) =>
+  ["components", appId ?? "", screenId] as const;
 
-export function useComponents(screenId: string | undefined) {
-  const queryKey = componentsKey(String(screenId ?? ""));
+export function useComponents(screenId: string | undefined, appId?: string) {
+  const queryKey = componentsKey(String(screenId ?? ""), appId);
 
   return useQuery<ComponentResponse[]>({
     queryKey,
-    queryFn: () => ComponentService.getByScreen(screenId!),
+    queryFn: async () => {
+      const components = await ComponentService.getByScreen(screenId!);
+      return components.filter((component) => String(component.screenId) === String(screenId));
+    },
+    select: (components) =>
+      components.filter((component) => String(component.screenId) === String(screenId)),
     enabled: screenId !== undefined,
   });
 }
@@ -26,12 +32,12 @@ export function useCreateComponent() {
   return useMutation<
     ComponentResponse,
     Error,
-    ComponentRequest,
+    { appId?: string; data: ComponentRequest },
     { optimisticId: string; queryKey: ReturnType<typeof componentsKey> }
   >({
-    mutationFn: (data) => ComponentService.create(data),
-    onMutate: async (data) => {
-      const queryKey = componentsKey(String(data.screenId));
+    mutationFn: ({ data }) => ComponentService.create(data),
+    onMutate: async ({ appId, data }) => {
+      const queryKey = componentsKey(String(data.screenId), appId);
       const optimisticId = `optimistic-${Date.now()}`;
       const timestamp = new Date().toISOString();
 
@@ -94,11 +100,11 @@ export function useUpdateComponent() {
   return useMutation<
     ComponentResponse,
     Error,
-    { id: string; screenId: string; data: ComponentRequest }
+    { id: string; screenId: string; appId?: string; data: ComponentRequest }
   >({
     mutationFn: ({ id, data }) => ComponentService.update(id, data),
-    onSuccess: (updated, { id, screenId }) => {
-      queryClient.setQueryData<ComponentResponse[]>(componentsKey(String(screenId)), (current = []) =>
+    onSuccess: (updated, { id, screenId, appId }) => {
+      queryClient.setQueryData<ComponentResponse[]>(componentsKey(String(screenId), appId), (current = []) =>
         current.map((component) => String(component.id) === String(id) ? updated : component)
       );
       toast({ title: "Componente atualizado" });
@@ -116,12 +122,12 @@ export function useDeleteComponent() {
   return useMutation<
     void,
     Error,
-    { id: string; screenId: string },
+    { id: string; screenId: string; appId?: string },
     { queryKey: ReturnType<typeof componentsKey>; previous: ComponentResponse[] }
   >({
     mutationFn: ({ id }) => ComponentService.delete(id),
-    onMutate: async ({ id, screenId }) => {
-      const queryKey = componentsKey(String(screenId));
+    onMutate: async ({ id, screenId, appId }) => {
+      const queryKey = componentsKey(String(screenId), appId);
       await queryClient.cancelQueries({ queryKey });
       const previous = queryClient.getQueryData<ComponentResponse[]>(queryKey) ?? [];
       queryClient.setQueryData<ComponentResponse[]>(queryKey, previous.filter(
@@ -129,8 +135,8 @@ export function useDeleteComponent() {
       ));
       return { queryKey, previous };
     },
-    onSuccess: async (_, { id, screenId }) => {
-      const queryKey = componentsKey(String(screenId));
+    onSuccess: async (_, { id, screenId, appId }) => {
+      const queryKey = componentsKey(String(screenId), appId);
       await queryClient.cancelQueries({ queryKey });
       queryClient.setQueryData<ComponentResponse[]>(queryKey, (current = []) =>
         current.filter((component) => String(component.id) !== String(id))

@@ -78,7 +78,7 @@ function CellValue({ value, elementType }: { value: any; elementType: string }) 
 function ScreenDataTable({ appId, screenId }: { appId: string; screenId: string }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data: components = [], isLoading: isLoadingComponents } = useComponents(screenId);
+  const { data: components = [], isLoading: isLoadingComponents } = useComponents(screenId, appId);
   const { data: entries = [], isLoading: isLoadingEntries } = useDataEntries(appId, screenId);
   const updateEntry = useUpdateDataEntry();
   const [rowEditor, setRowEditor] = useState<RowEditorState>(null);

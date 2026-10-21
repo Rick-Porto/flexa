@@ -68,8 +68,12 @@ export default function Editor() {
 
   const { data: app, isLoading: isAppLoading } = useApp(id);
   const { data: screens = [] } = useScreens(id);
+  const activeScreenId = screens.some((screen) => screen.id === selectedScreenId)
+    ? selectedScreenId
+    : screens[0]?.id ?? null;
   const { data: components = [] } = useComponents(
-    selectedScreenId ?? undefined
+    activeScreenId ?? undefined,
+    id
   );
 
   const createScreen = useCreateScreen();
@@ -80,15 +84,15 @@ export default function Editor() {
 
   // Auto-select first screen
   useEffect(() => {
-    if (screens.length > 0 && selectedScreenId === null) {
-      setSelectedScreenId(screens[0].id);
+    if (activeScreenId !== selectedScreenId) {
+      setSelectedScreenId(activeScreenId);
     }
-  }, [screens, selectedScreenId]);
+  }, [activeScreenId, selectedScreenId]);
 
   // Reset selected component when screen changes
   useEffect(() => {
     setSelectedComponentId(null);
-  }, [selectedScreenId]);
+  }, [activeScreenId]);
 
   const selectedComponent = components?.find(c => String(c.id) === selectedComponentId) ?? null;
 
@@ -125,7 +129,7 @@ export default function Editor() {
   };
 
   const handleAddComponent = (type: string) => {
-    if (selectedScreenId === null) return;
+    if (activeScreenId === null) return;
     scrollToNewComponent.current = true;
     const count = components?.length || 0;
     const defaultConfig =
@@ -134,21 +138,25 @@ export default function Editor() {
         : undefined;
 
     createComponent.mutate({
-      elementType: type,
-      label: `New ${type}`,
-      model: `field_${Date.now()}`,
-      order: count,
-      required: false,
-      screenId: selectedScreenId,
-      ...(defaultConfig ? { config: defaultConfig } : {}),
+      appId: id,
+      data: {
+        elementType: type,
+        label: `New ${type}`,
+        model: `field_${Date.now()}`,
+        order: count,
+        required: false,
+        screenId: activeScreenId,
+        ...(defaultConfig ? { config: defaultConfig } : {}),
+      },
     });
   };
 
   const handleUpdateComponent = (comp: ComponentResponse, updates: Partial<ComponentResponse>) => {
-    if (!selectedScreenId) return;
+    if (!activeScreenId) return;
     updateComponent.mutate({
       id: comp.id,
-      screenId: selectedScreenId,
+      screenId: activeScreenId,
+      appId: id,
       data: {
         elementType: updates.elementType ?? comp.elementType,
         label: updates.label ?? comp.label,
@@ -156,7 +164,7 @@ export default function Editor() {
         config: updates.config ?? comp.config ?? undefined,
         order: comp.order,
         required: updates.required ?? comp.required,
-        screenId: selectedScreenId,
+        screenId: activeScreenId,
       },
     });
   };
@@ -243,7 +251,7 @@ export default function Editor() {
                   key={screen.id}
                   className={cn(
                     "flex items-center justify-between px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors group",
-                    selectedScreenId === screen.id
+                    activeScreenId === screen.id
                       ? "bg-primary/10 text-primary font-medium"
                       : "hover:bg-accent hover:text-accent-foreground"
                   )}
@@ -272,7 +280,7 @@ export default function Editor() {
           <div className="h-max w-full max-w-2xl shrink-0 bg-card rounded-xl shadow-lg border border-border min-h-[480px] sm:min-h-[600px] flex flex-col">
             <div className="p-6 border-b border-border">
               <h2 className="text-2xl font-bold">
-                {screens?.find((s) => s.id === selectedScreenId)?.name ?? "Select a screen"}
+                {screens?.find((s) => s.id === activeScreenId)?.name ?? "Select a screen"}
               </h2>
             </div>
             <div className="p-6 space-y-4 flex-1">
@@ -305,7 +313,8 @@ export default function Editor() {
                             e.stopPropagation();
                             deleteComponent.mutate({
                               id: comp.id,
-                              screenId: selectedScreenId!,
+                              screenId: activeScreenId!,
+                              appId: id,
                             });
                             if (selectedComponentId === String(comp.id)) {
                               setSelectedComponentId(null);
@@ -441,7 +450,7 @@ export default function Editor() {
                       variant="outline"
                       className="h-20 flex flex-col gap-2 hover:border-primary hover:text-primary transition-all"
                       onClick={() => handleAddComponent(item.type)}
-                      disabled={selectedScreenId === null || createComponent.isPending}
+                      disabled={activeScreenId === null || createComponent.isPending}
                     >
                       <item.icon className="w-6 h-6" />
                       <span className="text-xs">{item.label}</span>

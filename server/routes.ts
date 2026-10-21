@@ -179,7 +179,11 @@ export async function registerRoutes(
   // --- Screens ---
 
   app.get(api.screens.list.path, isAuthenticated, async (req, res) => {
-    const screens = await storage.screens.getAll(String(req.params.appId));
+    const appId = req.query.appId;
+    if (typeof appId !== "string" || !appId) {
+      return res.json([]);
+    }
+    const screens = await storage.screens.getAll(appId);
     res.json(screens);
   });
 
@@ -187,7 +191,7 @@ export async function registerRoutes(
     try {
       const input = insertScreenSchema.parse({
         ...req.body,
-        appId: req.params.appId
+        appId: req.params.appId ?? req.body.appId,
       });
       const newScreen = await storage.screens.create(input);
       res.status(201).json(newScreen);

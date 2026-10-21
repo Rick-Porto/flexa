@@ -259,13 +259,16 @@ export default function Templates() {
         for (let order = 0; order < screen.fields.length; order++) {
           const field = screen.fields[order];
           await createComponent.mutateAsync({
-            elementType: field.elementType,
-            label: field.label,
-            model: field.model,
-            order,
-            required: field.required || false,
-            screenId: createdScreen.id,
-            ...(field.config ? { config: parseConfig(field.config) } : {}),
+            appId: app.id,
+            data: {
+              elementType: field.elementType,
+              label: field.label,
+              model: field.model,
+              order,
+              required: field.required || false,
+              screenId: createdScreen.id,
+              ...(field.config ? { config: parseConfig(field.config) } : {}),
+            },
           });
         }
       }

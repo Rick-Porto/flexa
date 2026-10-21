@@ -19,7 +19,7 @@ export default function Preview() {
   const { data: screens } = useScreens(id);
 
   const currentScreen = screens?.[activeScreenIndex];
-  const { data: components } = useComponents(currentScreen?.id);
+  const { data: components } = useComponents(currentScreen?.id, id);
   const createDataEntry = useCreateDataEntry();
 
   const handleFormSubmit = (formData: Record<string, any>) => {

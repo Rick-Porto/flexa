@@ -14,7 +14,9 @@ import type { ScreenRequest, ScreenResponse } from "../types/api";
 
 export const ScreenService = {
   async getAll(appId?: string): Promise<ScreenResponse[]> {
-    const res = await api.get<ScreenResponse[]>(apiRoutes.screens.list.path);
+    const res = await api.get<ScreenResponse[]>(apiRoutes.screens.list.path, {
+      params: appId ? { appId } : undefined,
+    });
     return appId
       ? res.data.filter((screen) => screen.appEntityId === appId || screen.appId === appId)
       : res.data;
@@ -26,20 +28,15 @@ export const ScreenService = {
   },
 
   async create(payload: ScreenRequest): Promise<ScreenResponse> {
-    const { appId, ...rest } = payload;
     const res = await api.post<ScreenResponse>(apiRoutes.screens.create.path, {
-      ...rest,
-      appEntityId: appId,
+      ...payload,
     });
     return res.data;
   },
 
   async update(id: string, payload: ScreenRequest): Promise<void> {
-    const { appId, ...rest } = payload;
-    await api.put(apiRoutes.screens.update.path.replace(':id', id), {
-      ...rest,
-      appEntityId: appId,
-    });
+    const { appId: _appId, ...data } = payload;
+    await api.put(apiRoutes.screens.update.path.replace(':id', id), data);
   },
 
   async delete(id: string): Promise<void> {
