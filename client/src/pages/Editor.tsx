@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
-import { useApp } from "@/hooks/use-apps";
+import { useApp, usePublishApp } from "@/hooks/use-apps";
 import { useScreens, useCreateScreen, useDeleteScreen } from "@/hooks/use-screens";
-import { useComponents, useCreateComponent, useUpdateComponent, useDeleteComponent } from "@/hooks/use-components";
+import { useComponents, useUpdateComponent, useDeleteComponent } from "@/hooks/use-components";
+import { ComponentService } from "@/api/componentService";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +21,7 @@ import {
   CheckSquare,
   List,
   Save,
+  Eye,
   Settings,
   Database,
   X,
@@ -57,7 +61,11 @@ function parseConfig(config: string | Record<string, any> | null): Record<string
 
 export default function Editor() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [selectedScreenId, setSelectedScreenId] = useState<string | null>(null);
+  const [pendingComponents, setPendingComponents] = useState<ComponentResponse[]>([]);
+  const [isSavingComponents, setIsSavingComponents] = useState(false);
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
   const [isNewScreenOpen, setIsNewScreenOpen] = useState(false);
   const [newScreenName, setNewScreenName] = useState("");
@@ -71,16 +79,20 @@ export default function Editor() {
   const activeScreenId = screens.some((screen) => screen.id === selectedScreenId)
     ? selectedScreenId
     : screens[0]?.id ?? null;
-  const { data: components = [] } = useComponents(
+  const { data: savedComponents = [] } = useComponents(
     activeScreenId ?? undefined,
     id
   );
+  const components = [
+    ...savedComponents,
+    ...pendingComponents.filter((component) => String(component.screenId) === String(activeScreenId)),
+  ];
 
   const createScreen = useCreateScreen();
   const deleteScreen = useDeleteScreen();
-  const createComponent = useCreateComponent();
   const updateComponent = useUpdateComponent();
   const deleteComponent = useDeleteComponent();
+  const publishApp = usePublishApp();
 
   // Auto-select first screen
   useEffect(() => {
@@ -129,7 +141,7 @@ export default function Editor() {
   };
 
   const handleAddComponent = (type: string) => {
-    if (activeScreenId === null) return;
+    if (activeScreenId === null || !id) return;
     scrollToNewComponent.current = true;
     const count = components?.length || 0;
     const defaultConfig =
@@ -137,21 +149,106 @@ export default function Editor() {
         ? { options: ["Option 1", "Option 2"] }
         : undefined;
 
-    createComponent.mutate({
-      appId: id,
-      data: {
-        elementType: type,
-        label: `New ${type}`,
-        model: `field_${Date.now()}`,
-        order: count,
-        required: false,
-        screenId: activeScreenId,
-        ...(defaultConfig ? { config: defaultConfig } : {}),
-      },
-    });
+    const timestamp = new Date().toISOString();
+    setPendingComponents((current) => [...current, {
+      id: `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      elementType: type,
+      label: `New ${type}`,
+      model: `field_${Date.now()}`,
+      config: defaultConfig ?? null,
+      order: count,
+      required: false,
+      validationRule: null,
+      screenId: activeScreenId,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      dataEntries: [],
+    }]);
+  };
+
+  const refreshComponentCaches = async (screenIds: string[]) => {
+    await Promise.all(screenIds.map(async (screenId) => {
+      const components = await ComponentService.getByScreen(screenId);
+      queryClient.setQueryData(
+        ["components", id ?? "", String(screenId)],
+        components.filter((component) => String(component.screenId) === String(screenId))
+      );
+    }));
+  };
+
+  const savePendingComponents = async () => {
+    if (!id) return false;
+    const drafts = pendingComponents.filter((component) =>
+      screens.some((screen) => String(screen.id) === String(component.screenId))
+    );
+    if (drafts.length === 0) return true;
+
+    setIsSavingComponents(true);
+    const savedIds: string[] = [];
+    const touchedScreenIds = Array.from(new Set(drafts.map((component) => String(component.screenId))));
+    try {
+      for (const component of drafts) {
+        await ComponentService.create({
+          elementType: component.elementType,
+          label: component.label,
+          model: component.model ?? undefined,
+          config: component.config,
+          order: component.order,
+          required: component.required,
+          validationRule: component.validationRule ?? undefined,
+          screenId: component.screenId,
+        });
+        savedIds.push(String(component.id));
+      }
+
+      await refreshComponentCaches(touchedScreenIds);
+      setPendingComponents((current) => current.filter((component) => !savedIds.includes(String(component.id))));
+      toast({ title: "Changes saved" });
+      return true;
+    } catch (error) {
+      setPendingComponents((current) => current.filter((component) => !savedIds.includes(String(component.id))));
+      await Promise.all(touchedScreenIds.map(async (screenId) => {
+        try {
+          await refreshComponentCaches([screenId]);
+        } catch {
+          queryClient.invalidateQueries({ queryKey: ["components", id, screenId] });
+        }
+      }));
+      toast({
+        title: "Unable to save all fields",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setIsSavingComponents(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!id || !(await savePendingComponents())) return;
+    await publishApp.mutateAsync(id);
+  };
+
+  const handleDeleteComponent = (component: ComponentResponse) => {
+    if (String(component.id).startsWith("pending-")) {
+      setPendingComponents((current) => current.filter((item) => item.id !== component.id));
+      if (selectedComponentId === String(component.id)) setSelectedComponentId(null);
+      return;
+    }
+
+    if (!activeScreenId) return;
+    deleteComponent.mutate({ id: component.id, screenId: activeScreenId, appId: id });
+    if (selectedComponentId === String(component.id)) setSelectedComponentId(null);
   };
 
   const handleUpdateComponent = (comp: ComponentResponse, updates: Partial<ComponentResponse>) => {
+    if (String(comp.id).startsWith("pending-")) {
+      setPendingComponents((current) => current.map((component) =>
+        component.id === comp.id ? { ...component, ...updates } : component
+      ));
+      return;
+    }
     if (!activeScreenId) return;
     updateComponent.mutate({
       id: comp.id,
@@ -206,11 +303,25 @@ export default function Editor() {
           </Link>
           <Link href={`/app/${id}/preview`} className="flex-1 sm:flex-none">
             <Button variant="outline" aria-label="Preview app" title="Preview App" className="w-full gap-2 px-2 sm:w-auto sm:px-4">
-              <Save className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Preview App</span>
+              <Eye className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Preview App</span>
             </Button>
           </Link>
-          <Button className="flex-1 gap-2 px-2 sm:px-4 btn-primary">
-            Publish
+          <Button
+            variant="outline"
+            className="flex-1 gap-2 px-2 sm:px-4"
+            onClick={() => void savePendingComponents()}
+            disabled={isSavingComponents || pendingComponents.length === 0}
+          >
+            {isSavingComponents ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            <span>Save{pendingComponents.length > 0 ? ` (${pendingComponents.length})` : ""}</span>
+          </Button>
+          <Button
+            className="flex-1 gap-2 px-2 sm:px-4 btn-primary"
+            onClick={() => void handlePublish()}
+            disabled={isSavingComponents || publishApp.isPending}
+          >
+            {publishApp.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            <span>{publishApp.isPending ? "Publishing..." : "Publish"}</span>
           </Button>
         </div>
       </header>
@@ -297,7 +408,7 @@ export default function Editor() {
                       key={comp.id}
                       className={cn(
                         "group relative p-4 rounded-lg border transition-all cursor-pointer",
-                        String(comp.id).startsWith("optimistic-") && "border-primary/40 bg-primary/5",
+                        String(comp.id).startsWith("pending-") && "border-primary/40 bg-primary/5",
                         selectedComponentId === String(comp.id)
                           ? "border-primary bg-primary/5 ring-1 ring-primary/30"
                           : "border-transparent hover:border-primary/50 hover:bg-primary/5"
@@ -311,14 +422,7 @@ export default function Editor() {
                           className="h-6 w-6 text-muted-foreground hover:text-destructive"
                           onClick={(e) => {
                             e.stopPropagation();
-                            deleteComponent.mutate({
-                              id: comp.id,
-                              screenId: activeScreenId!,
-                              appId: id,
-                            });
-                            if (selectedComponentId === String(comp.id)) {
-                              setSelectedComponentId(null);
-                            }
+                            handleDeleteComponent(comp);
                           }}
                         >
                           <Trash2 className="w-3 h-3" />
@@ -328,10 +432,9 @@ export default function Editor() {
                         {comp.label}
                         {comp.required && <span className="text-destructive ml-1">*</span>}
                       </Label>
-                      {String(comp.id).startsWith("optimistic-") && createComponent.isPending && (
-                        <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground" role="status">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Creating component...
+                      {String(comp.id).startsWith("pending-") && (
+                        <div className="mt-2 text-xs font-medium text-primary">
+                          Unsaved
                         </div>
                       )}
                       <div className="mt-2 pointer-events-none opacity-60">
@@ -450,7 +553,7 @@ export default function Editor() {
                       variant="outline"
                       className="h-20 flex flex-col gap-2 hover:border-primary hover:text-primary transition-all"
                       onClick={() => handleAddComponent(item.type)}
-                      disabled={activeScreenId === null || createComponent.isPending}
+                      disabled={activeScreenId === null || isSavingComponents}
                     >
                       <item.icon className="w-6 h-6" />
                       <span className="text-xs">{item.label}</span>

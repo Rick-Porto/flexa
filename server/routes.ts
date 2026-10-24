@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
@@ -178,20 +178,26 @@ export async function registerRoutes(
 
   // --- Screens ---
 
-  app.get(api.screens.list.path, isAuthenticated, async (req, res) => {
-    const appId = req.query.appId;
-    if (typeof appId !== "string" || !appId) {
-      return res.json([]);
-    }
+  const listScreens = async (appId: string, res: Response) => {
     const screens = await storage.screens.getAll(appId);
     res.json(screens);
+  };
+
+  app.get("/api/apps/:appId/screens", isAuthenticated, async (req, res) => {
+    await listScreens(String(req.params.appId), res);
   });
 
-  app.post(api.screens.create.path, isAuthenticated, async (req, res) => {
+  app.get(api.screens.list.path, isAuthenticated, async (req, res) => {
+    const appId = req.query.appId;
+    if (typeof appId !== "string" || !appId) return res.json([]);
+    await listScreens(appId, res);
+  });
+
+  const createScreen = async (appId: string, req: Request, res: Response) => {
     try {
       const input = insertScreenSchema.parse({
         ...req.body,
-        appId: req.params.appId ?? req.body.appId,
+        appId,
       });
       const newScreen = await storage.screens.create(input);
       res.status(201).json(newScreen);
@@ -204,6 +210,18 @@ export async function registerRoutes(
       }
       throw err;
     }
+  };
+
+  app.post("/api/apps/:appId/screens", isAuthenticated, async (req, res) => {
+    await createScreen(String(req.params.appId), req, res);
+  });
+
+  app.post(api.screens.create.path, isAuthenticated, async (req, res) => {
+    const appId = req.body?.appId;
+    if (typeof appId !== "string" || !appId) {
+      return res.status(400).json({ message: "appId is required", field: "appId" });
+    }
+    await createScreen(appId, req, res);
   });
 
   app.put(api.screens.update.path, isAuthenticated, async (req, res) => {

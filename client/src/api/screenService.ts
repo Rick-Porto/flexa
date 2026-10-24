@@ -28,9 +28,7 @@ export const ScreenService = {
   },
 
   async create(payload: ScreenRequest): Promise<ScreenResponse> {
-    const res = await api.post<ScreenResponse>(apiRoutes.screens.create.path, {
-      ...payload,
-    });
+    const res = await api.post<ScreenResponse>(apiRoutes.screens.create.path, payload);
     return res.data;
   },
 
