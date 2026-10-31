@@ -162,6 +162,7 @@ export default function Templates() {
   const [editedScreenName, setEditedScreenName] = useState("");
   const [activeScreenIdx, setActiveScreenIdx] = useState(0);
   const [previewMode, setPreviewMode] = useState(false);
+  const [creationPhase, setCreationPhase] = useState<"creating" | "loading">("creating");
 
   const openTemplateEditor = (template: Template) => {
     setSelectedTemplate(template);
@@ -251,6 +252,7 @@ export default function Templates() {
     );
 
     setIsCreating(true);
+    setCreationPhase("creating");
     try {
       const app = await createApp.mutateAsync({ name: appName, description: selectedTemplate.description });
 
@@ -272,6 +274,7 @@ export default function Templates() {
         ));
       }
 
+      setCreationPhase("loading");
       await Promise.all(createdScreens.map(async (screen) => {
         const components = await ComponentService.getByScreen(String(screen.id));
         queryClient.setQueryData(
@@ -295,7 +298,9 @@ export default function Templates() {
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
         <div className="text-center">
           <h1 className="text-xl font-semibold">Creating {appName}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Setting up screens and fields...</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {creationPhase === "creating" ? "Creating screens and fields..." : "Loading fields for each screen..."}
+          </p>
         </div>
       </div>
     );

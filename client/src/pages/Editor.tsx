@@ -75,11 +75,11 @@ export default function Editor() {
   const scrollToNewComponent = useRef(false);
 
   const { data: app, isLoading: isAppLoading } = useApp(id);
-  const { data: screens = [] } = useScreens(id);
+  const { data: screens = [], isLoading: isLoadingScreens } = useScreens(id);
   const activeScreenId = screens.some((screen) => screen.id === selectedScreenId)
     ? selectedScreenId
     : screens[0]?.id ?? null;
-  const { data: savedComponents = [] } = useComponents(
+  const { data: savedComponents = [], isLoading: isLoadingComponents } = useComponents(
     activeScreenId ?? undefined,
     id
   );
@@ -272,10 +272,13 @@ export default function Editor() {
     handleUpdateComponent(selectedComponent, { label: componentLabelDraft });
   };
 
-  if (isAppLoading || !app) {
+  if (isAppLoading || isLoadingScreens || !app || (activeScreenId !== null && isLoadingComponents)) {
     return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="h-screen flex flex-col items-center justify-center gap-3" role="status" aria-live="polite">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">
+          {isLoadingComponents ? "Loading screen fields..." : "Loading app screens..."}
+        </p>
       </div>
     );
   }

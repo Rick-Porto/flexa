@@ -197,7 +197,7 @@ export async function registerRoutes(
     try {
       const input = insertScreenSchema.parse({
         ...req.body,
-        appId,
+        appId: appId || req.body.appId || req.body.appEntityId,
       });
       const newScreen = await storage.screens.create(input);
       res.status(201).json(newScreen);
@@ -217,7 +217,7 @@ export async function registerRoutes(
   });
 
   app.post(api.screens.create.path, isAuthenticated, async (req, res) => {
-    const appId = req.body?.appId;
+    const appId = req.body?.appId ?? req.body?.appEntityId;
     if (typeof appId !== "string" || !appId) {
       return res.status(400).json({ message: "appId is required", field: "appId" });
     }
@@ -254,6 +254,11 @@ export async function registerRoutes(
       return res.status(400).json({ error: "screenId query parameter is required" });
     }
     const components = await storage.components.getAll(screenId);
+    res.json(components);
+  });
+
+  app.get("/api/Component/by-screen/:screenId", isAuthenticated, async (req, res) => {
+    const components = await storage.components.getAll(String(req.params.screenId));
     res.json(components);
   });
 

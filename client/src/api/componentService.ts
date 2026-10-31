@@ -36,8 +36,7 @@ export const ComponentService = {
 
   async getByScreen(screenId: string): Promise<ComponentResponse[]> {
     const res = await api.get<ComponentResponse[]>(
-      apiRoutes.components.list.path,
-      { params: { screenId } }
+      `/api/Component/by-screen/${encodeURIComponent(screenId)}`
     );
     return res.data;
   },
