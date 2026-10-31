@@ -1,22 +1,31 @@
 import { db } from "../db";
-import { eq, and } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { 
   screens, 
   type Screen, 
   type InsertScreen 
 } from "@shared/schema";
 
+const memoryScreens: Screen[] = [];
+
 export class ScreenService {
   async getAll(appId: string): Promise<Screen[]> {
     if (!db) {
-      // Mock data for frontend testing
-      return [{
-        id: "mock-screen-1",
+      const appScreens = memoryScreens
+        .filter((screen) => screen.appId === appId)
+        .sort((a, b) => a.order - b.order);
+      if (appScreens.length > 0) return appScreens;
+
+      const defaultScreen: Screen = {
+        id: randomUUID(),
         appId,
         name: "Main Screen",
         order: 0,
         metadata: {},
-      }];
+      };
+      memoryScreens.push(defaultScreen);
+      return [defaultScreen];
     }
     
     return await db
@@ -28,17 +37,7 @@ export class ScreenService {
 
   async getById(id: string): Promise<Screen | undefined> {
     if (!db) {
-      // Mock data for frontend testing
-      if (id === "mock-screen-1") {
-        return {
-          id: "mock-screen-1",
-          appId: "mock-app-1",
-          name: "Main Screen",
-          order: 0,
-          metadata: {},
-        };
-      }
-      return undefined;
+      return memoryScreens.find((screen) => screen.id === id);
     }
     
     const [screen] = await db.select().from(screens).where(eq(screens.id, id));
@@ -47,14 +46,15 @@ export class ScreenService {
 
   async create(screen: InsertScreen): Promise<Screen> {
     if (!db) {
-      // Mock data for frontend testing
-      return {
-        id: "new-mock-screen",
+      const newScreen: Screen = {
+        id: randomUUID(),
         appId: screen.appId,
         name: screen.name ?? null,
         order: screen.order ?? 0,
         metadata: (screen as any).metadata ?? {},
       };
+      memoryScreens.push(newScreen);
+      return newScreen;
     }
     
     const [newScreen] = await db.insert(screens).values(screen).returning();
@@ -63,14 +63,10 @@ export class ScreenService {
 
   async update(id: string, screen: Partial<InsertScreen>): Promise<Screen | undefined> {
     if (!db) {
-      // Mock data for frontend testing
-      return {
-        id,
-        appId: "mock-app-1",
-        name: screen.name || "Updated Screen",
-        order: screen.order ?? 0,
-        metadata: (screen as any).metadata ?? {},
-      };
+      const index = memoryScreens.findIndex((item) => item.id === id);
+      if (index < 0) return undefined;
+      memoryScreens[index] = { ...memoryScreens[index], ...screen };
+      return memoryScreens[index];
     }
     
     const [updatedScreen] = await db
@@ -83,7 +79,8 @@ export class ScreenService {
 
   async delete(id: string): Promise<void> {
     if (!db) {
-      // Mock - do nothing
+      const index = memoryScreens.findIndex((item) => item.id === id);
+      if (index >= 0) memoryScreens.splice(index, 1);
       return;
     }
     

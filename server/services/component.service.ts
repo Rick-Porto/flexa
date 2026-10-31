@@ -1,4 +1,5 @@
 import { db } from "../db";
+import { randomUUID } from "node:crypto";
 import { eq, and } from "drizzle-orm";
 import { 
   components, 
@@ -6,21 +7,12 @@ import {
   type InsertComponent 
 } from "@shared/schema";
 
+const memoryComponents = new Map<string, Component[]>();
+
 export class ComponentService {
   async getAll(screenId: string): Promise<Component[]> {
     if (!db) {
-      // Mock data for frontend testing
-      return [{
-        id: "mock-component-1",
-        screenId,
-        elementType: "text",
-        model: "name",
-        label: "Name",
-        config: {},
-        order: 0,
-        required: true,
-        validationRule: "",
-      }];
+      return [...(memoryComponents.get(screenId) ?? [])].sort((a, b) => a.order - b.order);
     }
     
     return await db
@@ -32,21 +24,7 @@ export class ComponentService {
 
   async getById(id: string): Promise<Component | undefined> {
     if (!db) {
-      // Mock data for frontend testing
-      if (id === "mock-component-1") {
-        return {
-          id: "mock-component-1",
-          screenId: "mock-screen-1",
-          elementType: "text",
-          model: "name",
-          label: "Name",
-          config: {},
-          order: 0,
-          required: true,
-          validationRule: "",
-        };
-      }
-      return undefined;
+      return Array.from(memoryComponents.values()).flat().find((component) => component.id === id);
     }
     
     const [component] = await db
@@ -58,9 +36,8 @@ export class ComponentService {
 
   async create(component: InsertComponent): Promise<Component> {
     if (!db) {
-      // Mock data for frontend testing
-      return {
-        id: "new-mock-component",
+      const newComponent: Component = {
+        id: randomUUID(),
         screenId: component.screenId,
         elementType: component.elementType,
         model: component.model,
@@ -69,7 +46,11 @@ export class ComponentService {
         order: component.order ?? 0,
         required: component.required ?? false,
         validationRule: component.validationRule ?? null,
-      } as Component;
+      };
+      const screenComponents = memoryComponents.get(component.screenId) ?? [];
+      screenComponents.push(newComponent);
+      memoryComponents.set(component.screenId, screenComponents);
+      return newComponent;
     }
     
     const [newComponent] = await db
@@ -81,18 +62,13 @@ export class ComponentService {
 
   async update(id: string, component: Partial<InsertComponent>): Promise<Component | undefined> {
     if (!db) {
-      // Mock data for frontend testing
-      return {
-        id,
-        screenId: "mock-screen-1",
-        elementType: "text",
-        model: "name",
-        label: component.label || "Updated Component",
-        config: component.config || {},
-        order: component.order ?? 0,
-        required: component.required ?? false,
-        validationRule: component.validationRule ?? null,
-      };
+      const existing = await this.getById(id);
+      if (!existing) return undefined;
+      const updated = { ...existing, ...component };
+      const screenComponents = memoryComponents.get(existing.screenId) ?? [];
+      const index = screenComponents.findIndex((item) => item.id === id);
+      if (index >= 0) screenComponents[index] = updated;
+      return updated;
     }
     
     const [updatedComponent] = await db
@@ -105,7 +81,12 @@ export class ComponentService {
 
   async delete(id: string): Promise<void> {
     if (!db) {
-      // Mock - do nothing
+      memoryComponents.forEach((screenComponents, screenId) => {
+        const remaining = screenComponents.filter((component) => component.id !== id);
+        if (remaining.length !== screenComponents.length) {
+          memoryComponents.set(screenId, remaining);
+        }
+      });
       return;
     }
     

@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 import { useCreateApp } from "@/hooks/use-apps";
+import { useCreateScreen } from "@/hooks/use-screens";
 
 const formSchema = z.object({
   name: z.string().min(1, "App name is required"),
@@ -24,23 +25,25 @@ type FormData = z.infer<typeof formSchema>;
 
 export function CreateAppDialog() {
   const [open, setOpen] = useState(false);
-  const { mutate, isPending } = useCreateApp();
+  const createApp = useCreateApp();
+  const createScreen = useCreateScreen();
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(formSchema),
   });
 
-  const onSubmit = (data: FormData) => {
-    mutate(
-      { name: data.name, description: data.description },
-      {
-        onSuccess: () => {
-          setOpen(false);
-          reset();
-        },
-      }
-    );
+  const onSubmit = async (data: FormData) => {
+    try {
+      const app = await createApp.mutateAsync({ name: data.name, description: data.description });
+      await createScreen.mutateAsync({ name: "Main Screen", appId: app.id });
+      setOpen(false);
+      reset();
+    } catch (error) {
+      console.error("Failed to create app and initial screen:", error);
+    }
   };
+
+  const isPending = createApp.isPending || createScreen.isPending;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

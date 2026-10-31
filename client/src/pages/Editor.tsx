@@ -1,8 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
-import { useApp } from "@/hooks/use-apps";
+import { useApp, usePublishApp } from "@/hooks/use-apps";
 import { useScreens, useCreateScreen, useDeleteScreen } from "@/hooks/use-screens";
-import { useComponents, useCreateComponent, useUpdateComponent, useDeleteComponent } from "@/hooks/use-components";
+import { useComponents, useUpdateComponent, useDeleteComponent } from "@/hooks/use-components";
+import { ComponentService } from "@/api/componentService";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,9 +21,11 @@ import {
   CheckSquare,
   List,
   Save,
+  Eye,
   Settings,
   Database,
-  X
+  X,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -56,36 +61,71 @@ function parseConfig(config: string | Record<string, any> | null): Record<string
 
 export default function Editor() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [selectedScreenId, setSelectedScreenId] = useState<string | null>(null);
+  const [pendingComponents, setPendingComponents] = useState<ComponentResponse[]>([]);
+  const [isSavingComponents, setIsSavingComponents] = useState(false);
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
   const [isNewScreenOpen, setIsNewScreenOpen] = useState(false);
   const [newScreenName, setNewScreenName] = useState("");
+  const [componentLabelDraft, setComponentLabelDraft] = useState("");
+  const savedComponentLabel = useRef<string | null>(null);
+  const canvasRef = useRef<HTMLElement>(null);
+  const scrollToNewComponent = useRef(false);
 
   const { data: app, isLoading: isAppLoading } = useApp(id);
-  const { data: screens = [] } = useScreens(id);
-  const { data: components = [] } = useComponents(
-    selectedScreenId ?? undefined
+  const { data: screens = [], isLoading: isLoadingScreens } = useScreens(id);
+  const activeScreenId = screens.some((screen) => screen.id === selectedScreenId)
+    ? selectedScreenId
+    : screens[0]?.id ?? null;
+  const { data: savedComponents = [], isLoading: isLoadingComponents } = useComponents(
+    activeScreenId ?? undefined,
+    id
   );
+  const components = [
+    ...savedComponents,
+    ...pendingComponents.filter((component) => String(component.screenId) === String(activeScreenId)),
+  ];
 
   const createScreen = useCreateScreen();
   const deleteScreen = useDeleteScreen();
-  const createComponent = useCreateComponent();
   const updateComponent = useUpdateComponent();
   const deleteComponent = useDeleteComponent();
+  const publishApp = usePublishApp();
 
   // Auto-select first screen
   useEffect(() => {
-    if (screens.length > 0 && selectedScreenId === null) {
-      setSelectedScreenId(screens[0].id);
+    if (activeScreenId !== selectedScreenId) {
+      setSelectedScreenId(activeScreenId);
     }
-  }, [screens, selectedScreenId]);
+  }, [activeScreenId, selectedScreenId]);
 
   // Reset selected component when screen changes
   useEffect(() => {
     setSelectedComponentId(null);
-  }, [selectedScreenId]);
+  }, [activeScreenId]);
 
-  const selectedComponent = components?.find(c => c.id === selectedComponentId) ?? null;
+  const selectedComponent = components?.find(c => String(c.id) === selectedComponentId) ?? null;
+
+  useEffect(() => {
+    setComponentLabelDraft(selectedComponent?.label ?? "");
+    savedComponentLabel.current = selectedComponent?.label ?? null;
+  }, [selectedComponent?.id, selectedComponent?.label]);
+
+  useEffect(() => {
+    if (!scrollToNewComponent.current || components.length === 0) return;
+
+    scrollToNewComponent.current = false;
+    const frame = window.requestAnimationFrame(() => {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        canvas.scrollTo({ top: canvas.scrollHeight, behavior: "smooth" });
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [components.length]);
 
   const handleCreateScreen = () => {
     if (!newScreenName.trim() || !id) return;
@@ -101,29 +141,119 @@ export default function Editor() {
   };
 
   const handleAddComponent = (type: string) => {
-    if (selectedScreenId === null) return;
+    if (activeScreenId === null || !id) return;
+    scrollToNewComponent.current = true;
     const count = components?.length || 0;
     const defaultConfig =
       type === "dropdown"
         ? { options: ["Option 1", "Option 2"] }
         : undefined;
 
-    createComponent.mutate({
+    const timestamp = new Date().toISOString();
+    setPendingComponents((current) => [...current, {
+      id: `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       elementType: type,
       label: `New ${type}`,
       model: `field_${Date.now()}`,
+      config: defaultConfig ?? null,
       order: count,
       required: false,
-      screenId: selectedScreenId,
-      ...(defaultConfig ? { config: defaultConfig } : {}),
-    });
+      validationRule: null,
+      screenId: activeScreenId,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      dataEntries: [],
+    }]);
+  };
+
+  const refreshComponentCaches = async (screenIds: string[]) => {
+    await Promise.all(screenIds.map(async (screenId) => {
+      const components = await ComponentService.getByScreen(screenId);
+      queryClient.setQueryData(
+        ["components", id ?? "", String(screenId)],
+        components.filter((component) => String(component.screenId) === String(screenId))
+      );
+    }));
+  };
+
+  const savePendingComponents = async () => {
+    if (!id) return false;
+    const drafts = pendingComponents.filter((component) =>
+      screens.some((screen) => String(screen.id) === String(component.screenId))
+    );
+    if (drafts.length === 0) return true;
+
+    setIsSavingComponents(true);
+    const savedIds: string[] = [];
+    const touchedScreenIds = Array.from(new Set(drafts.map((component) => String(component.screenId))));
+    try {
+      for (const component of drafts) {
+        await ComponentService.create({
+          elementType: component.elementType,
+          label: component.label,
+          model: component.model ?? undefined,
+          config: component.config,
+          order: component.order,
+          required: component.required,
+          validationRule: component.validationRule ?? undefined,
+          screenId: component.screenId,
+        });
+        savedIds.push(String(component.id));
+      }
+
+      await refreshComponentCaches(touchedScreenIds);
+      setPendingComponents((current) => current.filter((component) => !savedIds.includes(String(component.id))));
+      toast({ title: "Changes saved" });
+      return true;
+    } catch (error) {
+      setPendingComponents((current) => current.filter((component) => !savedIds.includes(String(component.id))));
+      await Promise.all(touchedScreenIds.map(async (screenId) => {
+        try {
+          await refreshComponentCaches([screenId]);
+        } catch {
+          queryClient.invalidateQueries({ queryKey: ["components", id, screenId] });
+        }
+      }));
+      toast({
+        title: "Unable to save all fields",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setIsSavingComponents(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!id || !(await savePendingComponents())) return;
+    await publishApp.mutateAsync(id);
+  };
+
+  const handleDeleteComponent = (component: ComponentResponse) => {
+    if (String(component.id).startsWith("pending-")) {
+      setPendingComponents((current) => current.filter((item) => item.id !== component.id));
+      if (selectedComponentId === String(component.id)) setSelectedComponentId(null);
+      return;
+    }
+
+    if (!activeScreenId) return;
+    deleteComponent.mutate({ id: component.id, screenId: activeScreenId, appId: id });
+    if (selectedComponentId === String(component.id)) setSelectedComponentId(null);
   };
 
   const handleUpdateComponent = (comp: ComponentResponse, updates: Partial<ComponentResponse>) => {
-    if (!selectedScreenId) return;
+    if (String(comp.id).startsWith("pending-")) {
+      setPendingComponents((current) => current.map((component) =>
+        component.id === comp.id ? { ...component, ...updates } : component
+      ));
+      return;
+    }
+    if (!activeScreenId) return;
     updateComponent.mutate({
       id: comp.id,
-      screenId: selectedScreenId,
+      screenId: activeScreenId,
+      appId: id,
       data: {
         elementType: updates.elementType ?? comp.elementType,
         label: updates.label ?? comp.label,
@@ -131,54 +261,77 @@ export default function Editor() {
         config: updates.config ?? comp.config ?? undefined,
         order: comp.order,
         required: updates.required ?? comp.required,
-        screenId: selectedScreenId,
+        screenId: activeScreenId,
       },
     });
   };
 
-  if (isAppLoading || !app) {
+  const handleSaveComponentLabel = () => {
+    if (!selectedComponent || componentLabelDraft === savedComponentLabel.current) return;
+    savedComponentLabel.current = componentLabelDraft;
+    handleUpdateComponent(selectedComponent, { label: componentLabelDraft });
+  };
+
+  if (isAppLoading || isLoadingScreens || !app || (activeScreenId !== null && isLoadingComponents)) {
     return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="h-screen flex flex-col items-center justify-center gap-3" role="status" aria-live="polite">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">
+          {isLoadingComponents ? "Loading screen fields..." : "Loading app screens..."}
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
+    <div className="min-h-screen md:h-screen flex flex-col bg-background overflow-x-hidden md:overflow-hidden">
       {/* Header */}
-      <header className="h-16 border-b border-border flex items-center justify-between px-6 bg-card shrink-0">
+      <header className="min-h-16 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3 sm:px-6 py-3 sm:py-0 bg-card shrink-0">
         <div className="flex items-center gap-4">
           <Link href="/">
             <Button variant="ghost" size="icon">
               <ChevronLeft className="w-5 h-5" />
             </Button>
           </Link>
-          <div>
-            <h1 className="font-bold text-lg">{app.name ?? "Untitled App"}</h1>
+          <div className="min-w-0">
+            <h1 className="font-bold text-lg truncate">{app.name ?? "Untitled App"}</h1>
             <p className="text-xs text-muted-foreground">Editor Mode</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Link href={`/app/${id}/data`}>
-            <Button variant="outline" className="gap-2">
-              <Database className="w-4 h-4" /> Data
+        <div className="flex w-full sm:w-auto gap-2">
+          <Link href={`/app/${id}/data`} className="flex-1 sm:flex-none">
+            <Button variant="outline" aria-label="Open data view" title="Data" className="w-full gap-2 px-2 sm:w-auto sm:px-4">
+              <Database className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Data</span>
             </Button>
           </Link>
-          <Link href={`/app/${id}/preview`}>
-            <Button variant="outline" className="gap-2">
-              <Save className="w-4 h-4" /> Preview App
+          <Link href={`/app/${id}/preview`} className="flex-1 sm:flex-none">
+            <Button variant="outline" aria-label="Preview app" title="Preview App" className="w-full gap-2 px-2 sm:w-auto sm:px-4">
+              <Eye className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Preview App</span>
             </Button>
           </Link>
-          <Button className="gap-2 btn-primary">
-            Publish
+          <Button
+            variant="outline"
+            className="flex-1 gap-2 px-2 sm:px-4"
+            onClick={() => void savePendingComponents()}
+            disabled={isSavingComponents || pendingComponents.length === 0}
+          >
+            {isSavingComponents ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            <span>Save{pendingComponents.length > 0 ? ` (${pendingComponents.length})` : ""}</span>
+          </Button>
+          <Button
+            className="flex-1 gap-2 px-2 sm:px-4 btn-primary"
+            onClick={() => void handlePublish()}
+            disabled={isSavingComponents || publishApp.isPending}
+          >
+            {publishApp.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            <span>{publishApp.isPending ? "Publishing..." : "Publish"}</span>
           </Button>
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col md:flex-row md:overflow-hidden">
         {/* Left Sidebar: Screens */}
-        <aside className="w-64 border-r border-border bg-card flex flex-col shrink-0">
+        <aside className="w-full max-h-56 md:max-h-none md:w-64 border-b md:border-b-0 md:border-r border-border bg-card flex flex-col shrink-0">
           <div className="p-4 border-b border-border flex justify-between items-center">
             <h2 className="font-semibold text-sm">Screens</h2>
             <Dialog open={isNewScreenOpen} onOpenChange={setIsNewScreenOpen}>
@@ -212,7 +365,7 @@ export default function Editor() {
                   key={screen.id}
                   className={cn(
                     "flex items-center justify-between px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors group",
-                    selectedScreenId === screen.id
+                    activeScreenId === screen.id
                       ? "bg-primary/10 text-primary font-medium"
                       : "hover:bg-accent hover:text-accent-foreground"
                   )}
@@ -237,11 +390,11 @@ export default function Editor() {
         </aside>
 
         {/* Center: Canvas */}
-        <main className="flex-1 bg-muted/30 p-8 overflow-auto flex justify-center">
-          <div className="w-full max-w-2xl bg-card rounded-xl shadow-lg border border-border min-h-[600px] flex flex-col">
+        <main ref={canvasRef} className="min-w-0 min-h-0 flex-1 bg-muted/30 p-3 pb-24 sm:p-8 sm:pb-24 overflow-auto flex items-start justify-center">
+          <div className="h-max w-full max-w-2xl shrink-0 bg-card rounded-xl shadow-lg border border-border min-h-[480px] sm:min-h-[600px] flex flex-col">
             <div className="p-6 border-b border-border">
               <h2 className="text-2xl font-bold">
-                {screens?.find((s) => s.id === selectedScreenId)?.name ?? "Select a screen"}
+                {screens?.find((s) => s.id === activeScreenId)?.name ?? "Select a screen"}
               </h2>
             </div>
             <div className="p-6 space-y-4 flex-1">
@@ -258,11 +411,12 @@ export default function Editor() {
                       key={comp.id}
                       className={cn(
                         "group relative p-4 rounded-lg border transition-all cursor-pointer",
-                        selectedComponentId === comp.id
+                        String(comp.id).startsWith("pending-") && "border-primary/40 bg-primary/5",
+                        selectedComponentId === String(comp.id)
                           ? "border-primary bg-primary/5 ring-1 ring-primary/30"
                           : "border-transparent hover:border-primary/50 hover:bg-primary/5"
                       )}
-                      onClick={() => setSelectedComponentId(comp.id)}
+                      onClick={() => setSelectedComponentId(String(comp.id))}
                     >
                       <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 flex gap-1">
                         <Button
@@ -271,22 +425,21 @@ export default function Editor() {
                           className="h-6 w-6 text-muted-foreground hover:text-destructive"
                           onClick={(e) => {
                             e.stopPropagation();
-                            deleteComponent.mutate({
-                              id: comp.id,
-                              screenId: selectedScreenId!,
-                            });
-                            if (selectedComponentId === comp.id) {
-                              setSelectedComponentId(null);
-                            }
+                            handleDeleteComponent(comp);
                           }}
                         >
                           <Trash2 className="w-3 h-3" />
                         </Button>
                       </div>
-                      <Label className="pointer-events-none">
+                      <Label className="pointer-events-none block max-w-full break-words text-base font-semibold leading-6 md:text-lg md:leading-7">
                         {comp.label}
                         {comp.required && <span className="text-destructive ml-1">*</span>}
                       </Label>
+                      {String(comp.id).startsWith("pending-") && (
+                        <div className="mt-2 text-xs font-medium text-primary">
+                          Unsaved
+                        </div>
+                      )}
                       <div className="mt-2 pointer-events-none opacity-60">
                         {comp.elementType === "checkbox" ? (
                           <div className="flex items-center gap-2">
@@ -307,7 +460,7 @@ export default function Editor() {
         </main>
 
         {/* Right Sidebar: Components & Properties */}
-        <aside className="w-72 border-l border-border bg-card flex flex-col shrink-0">
+        <aside className="w-full md:w-72 border-t md:border-t-0 md:border-l border-border bg-card flex flex-col shrink-0">
           <div className="p-4 border-b border-border">
             <h2 className="font-semibold text-sm">
               {selectedComponent ? "Properties" : "Components"}
@@ -332,8 +485,16 @@ export default function Editor() {
                 <div className="space-y-2">
                   <Label className="text-xs">Label</Label>
                   <Input
-                    value={selectedComponent.label}
-                    onChange={(e) => handleUpdateComponent(selectedComponent, { label: e.target.value })}
+                    value={componentLabelDraft}
+                    onChange={(e) => setComponentLabelDraft(e.target.value)}
+                    onBlur={handleSaveComponentLabel}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleSaveComponentLabel();
+                        e.currentTarget.blur();
+                      }
+                    }}
                   />
                 </div>
 
@@ -395,7 +556,7 @@ export default function Editor() {
                       variant="outline"
                       className="h-20 flex flex-col gap-2 hover:border-primary hover:text-primary transition-all"
                       onClick={() => handleAddComponent(item.type)}
-                      disabled={selectedScreenId === null}
+                      disabled={activeScreenId === null || isSavingComponents}
                     >
                       <item.icon className="w-6 h-6" />
                       <span className="text-xs">{item.label}</span>

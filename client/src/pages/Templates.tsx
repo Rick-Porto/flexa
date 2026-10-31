@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCreateApp } from "@/hooks/use-apps";
 import { useCreateScreen } from "@/hooks/use-screens";
-import { useCreateComponent } from "@/hooks/use-components";
+import { ComponentService } from "@/api/componentService";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -150,9 +151,9 @@ const TEMPLATES: Template[] = [
 
 export default function Templates() {
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
   const createApp = useCreateApp();
   const createScreen = useCreateScreen();
-  const createComponent = useCreateComponent();
 
   const [editOpen, setEditOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
@@ -161,6 +162,7 @@ export default function Templates() {
   const [editedScreenName, setEditedScreenName] = useState("");
   const [activeScreenIdx, setActiveScreenIdx] = useState(0);
   const [previewMode, setPreviewMode] = useState(false);
+  const [creationPhase, setCreationPhase] = useState<"creating" | "loading">("creating");
 
   const openTemplateEditor = (template: Template) => {
     setSelectedTemplate(template);
@@ -250,25 +252,36 @@ export default function Templates() {
     );
 
     setIsCreating(true);
+    setCreationPhase("creating");
     try {
       const app = await createApp.mutateAsync({ name: appName, description: selectedTemplate.description });
 
+      const createdScreens = [];
       for (const screen of allScreens) {
         const createdScreen = await createScreen.mutateAsync({ name: screen.name, appId: app.id });
+        createdScreens.push(createdScreen);
 
-        for (let order = 0; order < screen.fields.length; order++) {
-          const field = screen.fields[order];
-          await createComponent.mutateAsync({
-            elementType: field.elementType,
-            label: field.label,
-            model: field.model,
-            order,
-            required: field.required || false,
-            screenId: createdScreen.id,
-            ...(field.config ? { config: parseConfig(field.config) } : {}),
-          });
-        }
+        await Promise.all(screen.fields.map((field, order) =>
+          ComponentService.create({
+              elementType: field.elementType,
+              label: field.label,
+              model: field.model,
+              order,
+              required: field.required || false,
+              screenId: createdScreen.id,
+              ...(field.config ? { config: parseConfig(field.config) } : {}),
+          })
+        ));
       }
+
+      setCreationPhase("loading");
+      await Promise.all(createdScreens.map(async (screen) => {
+        const components = await ComponentService.getByScreen(String(screen.id));
+        queryClient.setQueryData(
+          ["components", app.id, String(screen.id)],
+          components.filter((component) => String(component.screenId) === String(screen.id))
+        );
+      }));
 
       setEditOpen(false);
       navigate(`/app/${app.id}/editor`);
@@ -278,6 +291,20 @@ export default function Templates() {
       setIsCreating(false);
     }
   };
+
+  if (isCreating) {
+    return (
+      <div className="fixed inset-0 z-50 flex min-h-screen flex-col items-center justify-center gap-4 bg-background" role="status" aria-live="polite">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <div className="text-center">
+          <h1 className="text-xl font-semibold">Creating {appName}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {creationPhase === "creating" ? "Creating screens and fields..." : "Loading fields for each screen..."}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-7xl">
