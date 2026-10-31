@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
@@ -178,16 +178,26 @@ export async function registerRoutes(
 
   // --- Screens ---
 
-  app.get(api.screens.list.path, isAuthenticated, async (req, res) => {
-    const screens = await storage.screens.getAll(String(req.params.appId));
+  const listScreens = async (appId: string, res: Response) => {
+    const screens = await storage.screens.getAll(appId);
     res.json(screens);
+  };
+
+  app.get("/api/apps/:appId/screens", isAuthenticated, async (req, res) => {
+    await listScreens(String(req.params.appId), res);
   });
 
-  app.post(api.screens.create.path, isAuthenticated, async (req, res) => {
+  app.get(api.screens.list.path, isAuthenticated, async (req, res) => {
+    const appId = req.query.appId;
+    if (typeof appId !== "string" || !appId) return res.json([]);
+    await listScreens(appId, res);
+  });
+
+  const createScreen = async (appId: string, req: Request, res: Response) => {
     try {
       const input = insertScreenSchema.parse({
         ...req.body,
-        appId: req.params.appId
+        appId: appId || req.body.appId || req.body.appEntityId,
       });
       const newScreen = await storage.screens.create(input);
       res.status(201).json(newScreen);
@@ -200,6 +210,18 @@ export async function registerRoutes(
       }
       throw err;
     }
+  };
+
+  app.post("/api/apps/:appId/screens", isAuthenticated, async (req, res) => {
+    await createScreen(String(req.params.appId), req, res);
+  });
+
+  app.post(api.screens.create.path, isAuthenticated, async (req, res) => {
+    const appId = req.body?.appId ?? req.body?.appEntityId;
+    if (typeof appId !== "string" || !appId) {
+      return res.status(400).json({ message: "appId is required", field: "appId" });
+    }
+    await createScreen(appId, req, res);
   });
 
   app.put(api.screens.update.path, isAuthenticated, async (req, res) => {
@@ -227,6 +249,15 @@ export async function registerRoutes(
   // --- Components ---
 
   app.get(api.components.list.path, isAuthenticated, async (req, res) => {
+    const screenId = req.query.screenId;
+    if (typeof screenId !== "string" || !screenId) {
+      return res.status(400).json({ error: "screenId query parameter is required" });
+    }
+    const components = await storage.components.getAll(screenId);
+    res.json(components);
+  });
+
+  app.get("/api/Component/by-screen/:screenId", isAuthenticated, async (req, res) => {
     const components = await storage.components.getAll(String(req.params.screenId));
     res.json(components);
   });
@@ -235,7 +266,7 @@ export async function registerRoutes(
     try {
       const input = insertComponentSchema.parse({
         ...req.body,
-        screenId: req.params.screenId
+        screenId: req.params.screenId ?? req.body.screenId
       });
       const newComponent = await storage.components.create(input);
       res.status(201).json(newComponent);

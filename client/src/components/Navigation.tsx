@@ -1,13 +1,9 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { usePublishedApps } from "@/hooks/use-apps";
 import {
   LogOut,
-  LayoutDashboard,
-  Layers,
-  Settings,
-  User as UserIcon,
-  Globe
+  Globe,
+  Menu,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -19,11 +15,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 export function Navigation() {
   const { user, signOut } = useAuth();
   const [location] = useLocation();
-  const { data: publishedApps } = usePublishedApps();
 
   if (!user) return null;
 
@@ -59,21 +62,77 @@ export function Navigation() {
             >
               Templates
             </Link>
-            {publishedApps && publishedApps.length > 0 && (
-              <Link
-                href="/published"
-                className={`text-sm font-medium transition-colors hover:text-primary flex items-center gap-1 ${
-                  location === "/published" ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                <Globe className="h-4 w-4" />
-                Published Apps
-              </Link>
-            )}
+            <Link
+              href="/published"
+              className={`text-sm font-medium transition-colors hover:text-primary flex items-center gap-1 ${
+                location === "/published" ? "text-primary" : "text-muted-foreground"
+              }`}
+            >
+              <Globe className="h-4 w-4" />
+              Published Apps
+            </Link>
           </nav>
         </div>
 
         <div className="flex items-center gap-2">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden"
+                aria-label="Open navigation menu"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[min(18rem,85vw)]">
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-2 text-left">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                    F
+                  </span>
+                  FLEXA
+                </SheetTitle>
+              </SheetHeader>
+              <nav aria-label="Mobile navigation" className="mt-8 grid gap-1">
+                <SheetClose asChild>
+                  <Link
+                    href="/"
+                    aria-current={location === "/" ? "page" : undefined}
+                    className={`flex min-h-11 items-center rounded-md px-3 text-sm font-medium transition-colors hover:bg-accent ${
+                      location === "/" ? "bg-primary/10 text-primary" : "text-foreground"
+                    }`}
+                  >
+                    Dashboard
+                  </Link>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Link
+                    href="/templates"
+                    aria-current={location === "/templates" ? "page" : undefined}
+                    className={`flex min-h-11 items-center rounded-md px-3 text-sm font-medium transition-colors hover:bg-accent ${
+                      location === "/templates" ? "bg-primary/10 text-primary" : "text-foreground"
+                    }`}
+                  >
+                    Templates
+                  </Link>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Link
+                    href="/published"
+                    aria-current={location === "/published" ? "page" : undefined}
+                    className={`flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors hover:bg-accent ${
+                      location === "/published" ? "bg-primary/10 text-primary" : "text-foreground"
+                    }`}
+                  >
+                    <Globe className="h-4 w-4" />
+                    Published Apps
+                  </Link>
+                </SheetClose>
+              </nav>
+            </SheetContent>
+          </Sheet>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-9 w-9 rounded-full">

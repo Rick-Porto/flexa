@@ -20,7 +20,7 @@ export default function PublicApp() {
   const { data: screens } = useScreens(app?.id);
 
   const currentScreen = screens?.[activeScreenIndex];
-  const { data: components } = useComponents(currentScreen?.id);
+  const { data: components } = useComponents(currentScreen?.id, app?.id);
   const createDataEntry = useCreateDataEntry();
 
   const handleFormSubmit = (formData: Record<string, any>) => {

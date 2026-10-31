@@ -78,7 +78,7 @@ function CellValue({ value, elementType }: { value: any; elementType: string }) 
 function ScreenDataTable({ appId, screenId }: { appId: string; screenId: string }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data: components = [], isLoading: isLoadingComponents } = useComponents(screenId);
+  const { data: components = [], isLoading: isLoadingComponents } = useComponents(screenId, appId);
   const { data: entries = [], isLoading: isLoadingEntries } = useDataEntries(appId, screenId);
   const updateEntry = useUpdateDataEntry();
   const [rowEditor, setRowEditor] = useState<RowEditorState>(null);
@@ -547,31 +547,31 @@ export default function Data() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
+    <div className="min-h-screen md:h-screen flex flex-col bg-background overflow-x-hidden md:overflow-hidden">
       {/* Header */}
-      <header className="h-16 border-b border-border flex items-center justify-between px-6 bg-card shrink-0">
+      <header className="min-h-16 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3 sm:px-6 py-3 sm:py-0 bg-card shrink-0">
         <div className="flex items-center gap-4">
           <Link href={`/app/${id}/editor`}>
             <Button variant="ghost" size="icon">
               <ChevronLeft className="w-5 h-5" />
             </Button>
           </Link>
-          <div>
-            <h1 className="font-bold text-lg">{app.name ?? "Untitled App"}</h1>
+          <div className="min-w-0">
+            <h1 className="font-bold text-lg truncate">{app.name ?? "Untitled App"}</h1>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Database className="w-3 h-3" /> Data View
             </p>
           </div>
         </div>
-        <Link href={`/app/${id}/editor`}>
-          <Button variant="outline" className="gap-2">
+        <Link href={`/app/${id}/editor`} className="w-full sm:w-auto">
+          <Button variant="outline" className="w-full gap-2">
             <Table2 className="w-4 h-4" /> Open Editor
           </Button>
         </Link>
       </header>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 min-h-0 overflow-auto p-3 sm:p-6">
         {screens.length === 0 ? (
           <div className="text-center py-20 text-muted-foreground">
             <Database className="w-12 h-12 mx-auto mb-4 opacity-30" />

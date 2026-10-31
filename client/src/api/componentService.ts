@@ -10,7 +10,7 @@
  */
 
 import api from "./api-client";
-import { api as apiRoutes, buildUrl } from "@shared/routes";
+import { api as apiRoutes } from "@shared/routes";
 import type { ComponentRequest, ComponentResponse } from "../types/api";
 
 const normalizeComponentPayload = (payload: ComponentRequest) => ({
@@ -36,7 +36,7 @@ export const ComponentService = {
 
   async getByScreen(screenId: string): Promise<ComponentResponse[]> {
     const res = await api.get<ComponentResponse[]>(
-      buildUrl('/api/Component/by-screen/:screenId', { screenId })
+      `/api/Component/by-screen/${encodeURIComponent(screenId)}`
     );
     return res.data;
   },
